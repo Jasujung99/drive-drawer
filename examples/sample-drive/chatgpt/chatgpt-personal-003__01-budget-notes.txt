@@ -1,0 +1,5 @@
+Monthly budget (fictional)
+income: 2400
+rent: 900
+food: 350
+savings goal: 15 percent of income

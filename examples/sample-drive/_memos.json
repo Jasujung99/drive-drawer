@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "savedAt": "2026-11-01T09:00:00Z",
+  "memos": [
+    {
+      "id": "m-sample-1",
+      "text": "Reread the river poem before Friday.\nCover sketch notes: https://example.com/notes",
+      "x": 0.9,
+      "y": 560,
+      "color": "apricot",
+      "folded": false,
+      "updated": "2026-11-01T09:00:00Z"
+    }
+  ]
+}

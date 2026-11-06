@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap">
+<style>
+/* Layout: one drawer. Search on top; the list on the left with a small calendar below it; the reading pane on the right.
+   On narrow screens the list, reading pane and calendar stack in that order. */
+:root {
+  --page: #ece8f0;
+  --frame: #f5f3f7;
+  --sheet: #fcfbfd;
+  --ink: #2a2330;
+  --ink-2: #3a3340;
+  --muted: #8b8193;
+  --dim: #a69eae;
+  --dim-2: #bfb8c6;
+  --accent: #a084b4;
+  --accent-ink: #6e4f84;
+  --line: #e6e0ec;
+  --bar: #d9cbe3;
+  --tint: #f1ebf5;
+  --apricot: #e3a07a;
+  --apricot-line: #3b2b23;
+  --apricot-hi: #fdf9f3;
+  --f-sans: "Nanum Gothic", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #17151b; --frame: #1e1b23; --sheet: #25212b; --ink: #ece8f0; --ink-2: #d8d2de;
+    --muted: #9d94a6; --dim: #6f6779; --dim-2: #5a5364; --accent: #bda2d0; --accent-ink: #d4bfe3;
+    --line: #34303b; --bar: #5d4f6a; --tint: #2e2836; --apricot: #e3a07a; --apricot-line: #2a1d16; --apricot-hi: #fdf9f3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #17151b; --frame: #1e1b23; --sheet: #25212b; --ink: #ece8f0; --ink-2: #d8d2de;
+  --muted: #9d94a6; --dim: #6f6779; --dim-2: #5a5364; --accent: #bda2d0; --accent-ink: #d4bfe3;
+  --line: #34303b; --bar: #5d4f6a; --tint: #2e2836; --apricot: #e3a07a; --apricot-line: #2a1d16; --apricot-hi: #fdf9f3;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page); color: var(--ink); font-family: var(--f-sans); font-size: 15px; line-height: 1.6;
+  padding-block: clamp(16px, 4vw, 40px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+button { font-family: inherit; }
+.drawer { max-width: 1040px; margin: 0 auto; background: var(--frame); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+
+/* Top: apricot, search, "only you" */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 400; letter-spacing: .02em; }
+.seek { flex: 1 1 300px; max-width: 470px; display: flex; align-items: center; gap: 8px; position: relative; min-width: 0; }
+.search { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; border: 1px solid var(--bar); border-radius: 999px; padding: 0 6px 0 14px; background: var(--sheet); color: var(--muted); }
+.search:focus-within { border-color: var(--accent); }
+.search input { all: unset; flex: 1; min-width: 0; height: 34px; font-size: 14px; color: var(--ink); }
+.search input::placeholder { color: var(--dim); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search-clear { all: unset; box-sizing: border-box; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; color: var(--muted); }
+.search-clear:hover { background: var(--tint); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.4; color: var(--accent-ink); border: 1px solid var(--bar); border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
+.top > .pill { margin-left: auto; }
+
+/* Main grid */
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "nav reader" "cal reader"; }
+.nav { grid-area: nav; padding: 6px 14px 16px; border-right: 1px solid var(--line); min-width: 0; }
+.calw { grid-area: cal; padding: 16px 18px 22px; border-right: 1px solid var(--line); border-top: 1px solid var(--line); min-width: 0; }
+.reader { grid-area: reader; background: var(--sheet); padding: clamp(26px, 4vw, 46px) clamp(20px, 5vw, 56px) 34px; min-height: 560px; min-width: 0; }
+
+/* List */
+.found { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 10px 2px; font-size: 12px; color: var(--muted); }
+.group-head { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 12px; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--accent); letter-spacing: .05em; }
+.group-head:hover { background: var(--tint); }
+.group-head svg { transition: transform .2s ease; }
+.group-head[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.item { all: unset; box-sizing: border-box; display: block; width: 100%; position: relative; padding: 9px 10px 9px 20px; border-radius: 8px; cursor: pointer; color: var(--dim); transition: color .2s ease; }
+.item .t { display: block; font-size: 15px; line-height: 1.45; }
+.item .s { display: block; font-size: 12px; line-height: 1.5; color: var(--dim-2); margin-top: 3px; transition: color .2s ease; }
+.item::before { content: ""; position: absolute; left: 8px; top: 11px; bottom: 11px; width: 2px; border-radius: 2px; background: transparent; transition: background-color .2s ease; }
+.item:hover { color: var(--ink-2); }
+.item[aria-current="true"] { color: var(--ink); }
+.item[aria-current="true"] .s { color: var(--muted); }
+.item[aria-current="true"]::before { background: var(--bar); }
+mark { background: none; color: inherit; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.empty { color: var(--muted); font-size: 13px; line-height: 1.7; margin: 14px 10px; }
+
+/* Calendar */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-title { font-size: 13px; color: var(--ink); margin: 0; font-variant-numeric: tabular-nums; }
+.cal-arrows { display: flex; gap: 2px; }
+.cal-arrow { all: unset; box-sizing: border-box; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; color: var(--accent-ink); }
+.cal-arrow:hover { background: var(--tint); }
+.cal-arrow:disabled { color: var(--line); cursor: default; background: none; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; max-width: 320px; text-align: center; font-variant-numeric: tabular-nums; }
+.cal-dow { font-size: 11px; color: var(--dim); padding-bottom: 4px; }
+.cal-day { all: unset; box-sizing: border-box; position: relative; height: 30px; display: grid; place-items: center; border-radius: 50%; font-size: 12px; color: var(--dim); }
+button.cal-day { color: var(--ink); cursor: pointer; }
+button.cal-day::after { content: ""; position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent); }
+button.cal-day:hover { background: var(--tint); }
+.cal-day.sel { background: var(--tint); color: var(--accent-ink); }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-undated { all: unset; box-sizing: border-box; display: block; width: 100%; max-width: 320px; margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--tint); font-size: 12px; line-height: 1.5; color: var(--ink-2); cursor: pointer; }
+.cal-list { display: grid; gap: 2px; max-width: 320px; margin-top: 10px; }
+.cal-entry { all: unset; box-sizing: border-box; display: block; padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.cal-entry:hover { background: var(--tint); }
+.cal-entry[aria-current="true"] { color: var(--accent-ink); }
+.cal-entry small { display: block; font-size: 11px; color: var(--muted); }
+.cal-none { font-size: 12px; color: var(--dim); margin: 8px 0 0; }
+.built { font-size: 12px; color: var(--dim); margin: 18px 0 0; }
+.link-btn { all: unset; cursor: pointer; color: var(--accent-ink); text-decoration: underline; text-decoration-color: var(--bar); text-underline-offset: 4px; }
+.link-btn:hover { text-decoration-color: var(--accent); }
+
+/* Reading pane */
+.meta-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.meta { font-size: 12px; color: var(--muted); margin: 0; }
+.title { font-size: clamp(22px, 3vw, 28px); font-weight: 700; letter-spacing: -.03em; line-height: 1.35; margin: 12px 0 6px; text-wrap: balance; }
+.byline { font-size: 13px; color: var(--accent-ink); margin: 0; }
+.body { font-size: 16px; line-height: 2.05; color: var(--ink-2); white-space: pre-line; max-width: 36em; margin: 26px 0 32px; }
+.body:lang(en) { line-height: 1.9; word-break: normal; }
+.panel { margin: 26px 0 32px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--frame); max-width: 36em; }
+.panel p { margin: 0 0 8px; font-size: 15px; line-height: 1.8; color: var(--ink-2); }
+/* Markdown bodies (conversations) */
+.md { max-width: 38em; margin: 26px 0 32px; font-size: 15.5px; line-height: 1.95; color: var(--ink-2); }
+.md > :first-child { margin-top: 0; }
+.md p { margin: 0 0 14px; }
+.md h2 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); margin: 34px 0 10px; }
+.md h3 { font-size: 18px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); margin: 32px 0 10px; }
+.md h4 { font-size: 15.5px; font-weight: 700; color: var(--ink); margin: 24px 0 6px; }
+.md h5 { font-size: 14.5px; font-weight: 700; color: var(--ink); margin: 20px 0 6px; }
+.md ul { margin: 0 0 14px; padding-left: 1.2em; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--accent); }
+.md code { font-size: .88em; background: var(--tint); border-radius: 4px; padding: 1px 5px; }
+.table-wrap { overflow-x: auto; margin: 6px 0 16px; border: 1px solid var(--line); border-radius: 10px; }
+.md table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.6; }
+.md th, .md td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.md th { background: var(--frame); color: var(--muted); font-weight: 400; font-size: 12.5px; white-space: nowrap; }
+.md tr:last-child td { border-bottom: 0; }
+.md td.c { text-align: center; color: var(--accent-ink); }
+
+/* Photos: limited height in the reading pane, larger when selected */
+.figure { margin: 0 0 32px; }
+.figure-btn { all: unset; box-sizing: border-box; display: inline-block; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--frame); line-height: 0; cursor: zoom-in; }
+.figure-btn img { display: block; width: auto; height: auto; max-width: 100%; max-height: 420px; }
+.figure-btn:disabled { cursor: progress; }
+.figure-btn img:not([src]) { width: 180px; height: 240px; }
+/* Verbatim fence: text exactly as written, line breaks kept */
+.md .verbatim { white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; margin: 0 0 18px; padding: 14px 16px; border-left: 2px solid var(--bar); background: var(--frame); border-radius: 0; font-size: 15px; line-height: 1.95; color: var(--ink-2); }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+.trash-box { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-left: auto; }
+.trash-ask { color: var(--ink-2); }
+.chip.danger { color: #9b4a4a; border-color: #e3c2c2; }
+.chip.danger:hover { background: #f7ecec; }
+.chip:disabled { opacity: .6; cursor: progress; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 10px 12px 10px 16px; border-radius: 12px; background: var(--ink); color: var(--sheet); font-size: 13px; line-height: 1.5; }
+.toast .chip { color: var(--sheet); border-color: rgba(255, 255, 255, .4); }
+.toast .chip:hover { background: rgba(255, 255, 255, .12); }
+.md .file-link { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--frame); font-size: 14px; }
+.md .file-link small { color: var(--muted); font-size: 12px; }
+.md .file-link .missing { color: var(--muted); }
+.flag { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+.figure figcaption { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.viewer { border: 0; padding: 0; width: min(940px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); background: var(--sheet); color: var(--ink); border-radius: 12px; overflow: auto; }
+.viewer::backdrop { background: rgba(23, 21, 27, .72); }
+.viewer-bar { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; background: var(--sheet); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.viewer img { display: block; width: 100%; height: auto; }
+.foot { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border-top: 1px solid var(--line); padding-top: 16px; font-size: 12px; color: var(--muted); }
+.seg { display: inline-flex; gap: 6px; }
+.chip { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--bar); border-radius: 999px; padding: 4px 12px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.chip:hover { background: var(--tint); }
+.chip[aria-pressed="true"], .chip[aria-checked="true"] { border-color: var(--accent); color: var(--accent-ink); background: var(--tint); }
+a { color: var(--accent-ink); text-decoration: underline; text-decoration-color: var(--bar); text-underline-offset: 5px; }
+a:hover { text-decoration-color: var(--accent); }
+.item:focus-visible, .chip:focus-visible, .group-head:focus-visible, .cal-arrow:focus-visible, .cal-day:focus-visible,
+.cal-undated:focus-visible, .cal-entry:focus-visible, .search-clear:focus-visible, .figure-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Setup screen: the first visit, and Settings later */
+.setup { max-width: 34em; }
+.setup-intro { margin: 10px 0 24px; font-size: 14px; line-height: 1.8; color: var(--ink-2); }
+.c-field { display: grid; align-content: start; gap: 4px; margin: 0 0 16px; min-width: 0; }
+.c-label { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+.c-input { box-sizing: border-box; width: 100%; min-width: 0; margin: 0; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--frame); border: 1px solid var(--bar); border-radius: 10px; }
+.c-input::placeholder { color: var(--dim); }
+.c-input:focus { outline: none; border-color: var(--accent); background: var(--sheet); box-shadow: 0 0 0 3px var(--tint); }
+.c-hint { font-size: 11.5px; line-height: 1.5; color: var(--dim); margin: 0; }
+.c-error { margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: #f7ecec; color: #8a3d3d; font-size: 12.5px; line-height: 1.6; }
+.c-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.c-save { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 7px; padding: 7px 18px; border-radius: 999px; cursor: pointer; font-size: 13.5px; background: var(--accent-ink); color: var(--sheet); }
+.c-save:hover { filter: brightness(1.08); }
+.c-save:disabled { opacity: .6; cursor: progress; }
+.c-save:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body.is-setup .seek, body.is-setup .top > .pill, body.is-setup .memo-add, body.is-setup .nav, body.is-setup .calw { display: none; }
+body.is-setup .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "reader"; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .c-error { background: #3a2626; color: #f0c9c9; }
+}
+:root[data-theme="dark"] .c-error { background: #3a2626; color: #f0c9c9; }
+
+@media (max-width: 720px) {
+  .top { padding: 12px 16px; }
+  .seek { order: 3; flex-basis: 100%; max-width: none; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "nav" "reader" "cal"; }
+  .nav { border-right: 0; border-bottom: 1px solid var(--line); }
+  .calw { border-right: 0; border-top: 1px solid var(--line); padding: 18px 16px 22px; }
+  .reader { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .item, .item .s, .item::before, .group-head svg { transition: none; }
+}
+
+/* Memos (sticky notes): float over the whole page, moved by dragging the top bar. On narrow screens they stack at the top. */
+:root {
+  --memo-butter: #fbefb8; --memo-butter-bar: #f4e29a; --memo-butter-ink: #3d3416;
+  --memo-apricot: #fadccb; --memo-apricot-bar: #f4c9b0; --memo-apricot-ink: #43291c;
+  --memo-lilac: #e9def3; --memo-lilac-bar: #dccbec; --memo-lilac-ink: #2f2538;
+  --memo-shadow: 0 8px 18px rgba(42, 35, 48, .13), 0 1px 2px rgba(42, 35, 48, .12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --memo-butter: #4a4426; --memo-butter-bar: #5a5230; --memo-butter-ink: #f3ead0;
+    --memo-apricot: #4d3a30; --memo-apricot-bar: #5e463a; --memo-apricot-ink: #f6e2d6;
+    --memo-lilac: #3b3247; --memo-lilac-bar: #4a3f58; --memo-lilac-ink: #ece3f5;
+    --memo-shadow: 0 8px 18px rgba(0, 0, 0, .35), 0 1px 2px rgba(0, 0, 0, .3);
+  }
+}
+body { position: relative; min-height: 100vh; }
+.memo-add { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; line-height: 1.4; color: var(--ink-2); border: 1px solid var(--bar); border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
+.memo-add:hover { background: var(--tint); }
+.memo-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.memo-add:disabled { opacity: .5; cursor: default; }
+.memo-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.memo { --bg: var(--memo-butter); --barbg: var(--memo-butter-bar); --memo-ink: var(--memo-butter-ink);
+  position: absolute; width: 268px; pointer-events: auto; background: var(--bg); color: var(--memo-ink);
+  border-radius: 3px 3px 10px 3px; box-shadow: var(--memo-shadow); transform: rotate(-.6deg);
+  transition: transform .18s ease, box-shadow .18s ease; font-size: 14px; line-height: 1.7; }
+.memo.memo--apricot { --bg: var(--memo-apricot); --barbg: var(--memo-apricot-bar); --memo-ink: var(--memo-apricot-ink); transform: rotate(.5deg); }
+.memo.memo--lilac { --bg: var(--memo-lilac); --barbg: var(--memo-lilac-bar); --memo-ink: var(--memo-lilac-ink); transform: rotate(-.3deg); }
+.memo.is-dragging, .memo:focus-within { transform: none; }
+.memo.is-dragging { box-shadow: 0 14px 28px rgba(42, 35, 48, .2); }
+.memo-bar { display: flex; align-items: center; gap: 2px; min-height: 30px; padding: 2px 4px 2px 10px; background: var(--barbg); border-radius: 3px 3px 0 0; cursor: grab; touch-action: none; user-select: none; }
+.memo.is-dragging .memo-bar { cursor: grabbing; }
+.memo-status { flex: 1; min-width: 0; font-size: 11px; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.memo-btn { all: unset; box-sizing: border-box; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; cursor: pointer; color: inherit; }
+.memo-btn:hover { background: rgba(0, 0, 0, .07); }
+.memo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.memo-dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid currentColor; background: var(--bg); opacity: .8; }
+.memo-view { padding: 10px 14px 14px; min-height: 64px; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; cursor: text; outline: none; }
+.memo-view:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.memo-view a { color: inherit; text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.memo-view .memo-placeholder { opacity: .55; }
+.memo-edit { display: block; box-sizing: border-box; width: 100%; min-height: 110px; resize: vertical; border: 0; background: transparent; color: inherit; padding: 10px 14px 14px; font: inherit; line-height: 1.7; outline: none; }
+.memo.is-folded .memo-view, .memo.is-folded .memo-edit { display: none; }
+.memo.is-folded { width: 180px; }
+.memo-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 0 14px 12px; font-size: 12px; }
+.memo-confirm button { all: unset; cursor: pointer; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: 12px; }
+.memo-confirm button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 720px) {
+  .memo-layer { position: static; display: flex; flex-direction: column; gap: 12px; padding: 0 0 14px; pointer-events: auto; }
+  .memo-layer:empty { display: none; }
+  .memo, .memo.is-folded { position: static; width: auto; transform: none; }
+  .memo-bar { cursor: default; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memo { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="memo-layer" id="memo-layer" aria-label="Memos"></div>
+<div class="drawer">
+  <header class="top">
+    <p class="brand">
+      <svg id="brand-icon" width="30" height="30" viewBox="0 0 28 28" role="img" aria-label="Baked apricot">
+        <path d="M14 8.2C17.6 5.6 24.6 7.4 24.6 15C24.6 21.6 19.6 25.6 14 25.6C8.4 25.6 3.4 21.6 3.4 15C3.4 7.4 10.4 5.6 14 8.2Z" style="fill: var(--apricot)"/>
+        <ellipse cx="9.4" cy="13.2" rx="2.3" ry="1.4" transform="rotate(-32 9.4 13.2)" style="fill: var(--apricot-hi)" opacity=".75"/>
+        <path d="M14 8.2C17.6 5.6 24.6 7.4 24.6 15C24.6 21.6 19.6 25.6 14 25.6C8.4 25.6 3.4 21.6 3.4 15C3.4 7.4 10.4 5.6 14 8.2Z" fill="none" style="stroke: var(--apricot-line)" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M14 9C12.6 12.6 12.7 17.6 14.2 22.6" fill="none" style="stroke: var(--apricot-line)" stroke-width=".9" stroke-linecap="round" opacity=".5"/>
+        <path d="M14 8.2C14.2 6.6 14.6 5.4 15.4 4.4" fill="none" style="stroke: var(--apricot-line)" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M15.1 4.9C17 2.6 20.6 2.4 22.6 3.8C21 6.2 17.6 6.8 15.1 4.9Z" style="fill: var(--apricot-hi); stroke: var(--apricot-line)" stroke-width="1.1" stroke-linejoin="round"/>
+      </svg>
+      <span id="brand-title">Drawer</span>
+    </p>
+    <div class="seek">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/></svg>
+        <input id="q" type="search" placeholder="Search titles, text and sources" autocomplete="off" aria-label="Search the drawer">
+        <button type="button" class="search-clear" id="q-clear" aria-label="Clear search" hidden>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>
+        </button>
+      </label>
+    </div>
+    <span class="pill">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>
+      <span id="only-me">Only you</span>
+    </span>
+    <button type="button" class="memo-add" id="memo-add" disabled><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg><span id="memo-add-text">Add memo</span></button>
+  </header>
+  <div class="layout" id="layout">
+    <nav class="nav" id="nav" aria-label="Drawer list"></nav>
+    <article class="reader" id="reader" aria-live="polite"></article>
+    <aside class="calw" id="cal" aria-label="Calendar"></aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<dialog class="viewer" id="viewer" aria-label="Photo">
+  <div class="viewer-bar"><span id="viewer-caption"></span><button type="button" class="chip" id="viewer-close">Close</button></div>
+  <img id="viewer-img" alt="">
+</dialog>
+
+<script>
+/* ---------- words: English first, Korean when the drawer is set to Korean ---------- */
+const STRINGS = {
+  en: {
+    apricot: 'Baked apricot', search: 'Search titles, text and sources', searchAria: 'Search the drawer', clearSearch: 'Clear search',
+    onlyMe: 'Only you', addMemo: 'Add memo', navAria: 'Drawer list', calAria: 'Calendar', memos: 'Memos', viewer: 'Photo', close: 'Close',
+    opening: 'Opening your drawer…', openFailed: 'Could not open the drawer. Refresh in a moment. ({error})',
+    found: '{n} found', nothing: 'Nothing matches. Try other words.',
+    prevMonth: 'Previous month with records', nextMonth: 'Next month with records',
+    weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+    dayAria: '{date}, {n} records', dayAria1: '{date}, 1 record', undated: 'Date unknown · {titles}',
+    noDatedFound: 'None of the results has a date.', noDated: 'No dated records yet.',
+    updated: 'Updated {when}', settings: 'Settings',
+    language: 'Language', me: 'Me', notForSharing: 'Not for sharing', minePrivate: 'Mine · private', private: 'Private',
+    related: 'Related · {title}', relatedChat: 'Related chat · {title} · {where}', inTrash: 'in the trash', notInDrawer: 'not in the drawer',
+    fromChat: 'From a {service} chat',
+    openInDrive: '{name} · open in Drive ↗', notInFolder: '{name} · not in the drawer folder ({file})',
+    viewLarger: '{alt} · view larger', loadingPhoto: 'Loading the photo…', enlarge: '{alt} · select to view larger',
+    photoFailed: '{alt} · could not load the photo. Refresh and try again.',
+    chat: '{service} chat', project: 'project {name}', openIn: 'Open in {service} ↗', authorship: 'Authorship · {value}',
+    myTurns: '{n} turns of mine', myTurns1: '1 turn of mine', files: '{n} files', files1: '1 file',
+    filesMissing: '{n} files ({m} not in the drawer folder)', filesMissing1: '1 file (not in the drawer folder)',
+    missing: 'Missing · {text}', attachments: 'Attachments · {text}', aiOutputs: 'AI outputs · {text}',
+    codeOutputs: 'Code (not copied) · {text}', overlaps: 'Overlaps · {text}',
+    empty: 'Your drawer is empty. Put files in the drawer folder in Drive, then refresh.',
+    toTrash: 'Move to trash', trashAsk: 'Move this to the Drive trash? You can restore it for 30 days.', move: 'Move', cancel: 'Cancel',
+    moving: 'Moving…', moved: 'Moved “{title}” to the trash.', undo: 'Undo', undone: 'Restored.', undoFailed: 'Could not undo: {error}',
+    moveFailed: 'Could not move it: {error}',
+    trash: 'Trash', trashedOn: 'deleted {date}',
+    trashNote: 'This is in the Drive trash. Restoring puts it back in its folder and in the drawer.',
+    trashNote2: 'Google deletes it for good 30 days after it was trashed.', trashFiles: '{n} files come back together.',
+    restore: 'Restore', restoring: 'Restoring…', restored: 'Restored.', restoreFailed: 'Could not restore it: {error}',
+    colors: { butter: 'yellow', apricot: 'apricot', lilac: 'lilac' }, memo: 'Memo',
+    waitSave: 'Waiting to save…', saving: 'Saving…', saved: 'Saved', saveFailed: 'Not saved · edit again to retry',
+    memoPlaceholder: 'Select to write a memo', deleteMemo: 'Delete memo', editMemo: 'Edit memo', memoText: 'Memo text',
+    deleteAsk: 'Delete this memo?', delete: 'Delete', keep: 'Keep', changeColor: 'Change memo color (now {color})',
+    unfold: 'Unfold memo', fold: 'Fold memo', emptyMemo: 'Empty memo', memosFailed: 'Could not load memos. Refresh and try again.',
+    firstMemo: 'Welcome to your drawer.\nPut writing in texts/ and AI chats in chatgpt/, claude/, gemini/ or grok/ inside the drawer folder, then refresh.\nDrag this bar to move a memo.',
+    setupTitle: 'Set up your drawer', settingsTitle: 'Drawer settings',
+    setupIntro: 'Choose the Google Drive folder this page shows. The drawer reads it, moves files to the Drive trash only when you ask, and keeps your memos in one file there.',
+    folder: 'Drive folder', folderHint: 'Open the folder in Google Drive and paste the address from the address bar, or its id.',
+    folderNow: 'Now: {name}', pageTitle: 'Page title', ownerName: 'Your name',
+    ownerHint: 'Writing by this author, or with no author, shows as yours.', timeZone: 'Time zone: {tz} (from this browser)',
+    saveOpen: 'Save and open', checking: 'Checking the folder…', savedOpening: 'Saved. Opening “{name}”…', settingsSaved: 'Settings saved.',
+    langNames: { en: 'English', ko: '한국어', ja: '日本語', zh: '中文', es: 'Español', fr: 'Français', de: 'Deutsch' },
+  },
+  ko: {
+    apricot: '구운 살구', search: '제목·본문·출처에서 찾기', searchAria: '서랍 검색', clearSearch: '검색어 지우기',
+    onlyMe: '나만 보기', addMemo: '메모 추가', navAria: '서랍 목록', calAria: '기록 달력', memos: '메모', viewer: '사진 크게 보기', close: '닫기',
+    opening: '서랍을 여는 중이에요…', openFailed: '서랍을 열지 못했어요. 잠시 뒤 새로고침해 주세요. ({error})',
+    found: '찾은 자료 {n}개', nothing: '찾는 자료가 없어요. 다른 낱말로 찾아보세요.',
+    prevMonth: '기록이 있는 이전 달', nextMonth: '기록이 있는 다음 달',
+    weekdays: ['일', '월', '화', '수', '목', '금', '토'],
+    dayAria: '{date}, 기록 {n}개', dayAria1: '{date}, 기록 1개', undated: '날짜 미상 · {titles}',
+    noDatedFound: '찾은 자료 중 날짜가 있는 기록이 없어요.', noDated: '날짜가 있는 기록이 아직 없어요.',
+    updated: '갱신 {when}', settings: '설정',
+    language: '언어', me: '나', notForSharing: '공개 불가', minePrivate: '내 글 · 비공개', private: '비공개',
+    related: '관련 · {title}', relatedChat: '관련 대화 · {title} · {where}', inTrash: '휴지통에 있음', notInDrawer: '서랍에 없음',
+    fromChat: '{service} 대화에서',
+    openInDrive: '{name} · Drive에서 열기 ↗', notInFolder: '{name} · 서랍 폴더에 파일이 없어요 ({file})',
+    viewLarger: '{alt} 크게 보기', loadingPhoto: '사진을 불러오는 중…', enlarge: '{alt} · 누르면 크게 보기',
+    photoFailed: '{alt} · 사진을 불러오지 못했어요. 새로고침해 주세요.',
+    chat: '{service} 대화', project: '프로젝트 {name}', openIn: '{service}에서 열기 ↗', authorship: '작성자 · {value}',
+    myTurns: '내가 쓴 턴 {n}개', myTurns1: '내가 쓴 턴 1개', files: '자료 {n}개', files1: '자료 1개',
+    filesMissing: '자료 {n}개(서랍 폴더에 없는 파일 {m}개)', filesMissing1: '자료 1개(서랍 폴더에 없음)',
+    missing: '빠진 것 · {text}', attachments: '첨부 · {text}', aiOutputs: 'AI 결과물 · {text}',
+    codeOutputs: '코드(옮기지 않음) · {text}', overlaps: '겹치는 자료 · {text}',
+    empty: '서랍이 비어 있어요. Drive의 서랍 폴더에 자료를 넣고 새로고침하세요.',
+    toTrash: '휴지통으로', trashAsk: '휴지통으로 옮길까요? 30일 안에 되살릴 수 있어요.', move: '옮기기', cancel: '취소',
+    moving: '옮기는 중…', moved: '「{title}」 항목을 휴지통으로 옮겼어요.', undo: '되돌리기', undone: '되돌렸어요.', undoFailed: '되돌리지 못했어요: {error}',
+    moveFailed: '옮기지 못했어요: {error}',
+    trash: '휴지통', trashedOn: '{date} 지움',
+    trashNote: 'Drive 휴지통에 있는 파일이에요. 되살리면 원래 폴더로 돌아가고 서랍에 다시 나타나요.',
+    trashNote2: '지운 날로부터 30일이 지나면 Google이 자동으로 영구 삭제해요.', trashFiles: '파일 {n}개가 함께 돌아와요.',
+    restore: '되살리기', restoring: '되살리는 중…', restored: '되살렸어요.', restoreFailed: '되살리지 못했어요: {error}',
+    colors: { butter: '노랑', apricot: '살구', lilac: '연보라' }, memo: '메모',
+    waitSave: '저장 대기…', saving: '저장 중…', saved: '저장됨', saveFailed: '저장 실패 · 고치면 다시 저장해요',
+    memoPlaceholder: '눌러서 메모를 쓰세요', deleteMemo: '메모 지우기', editMemo: '메모 고치기', memoText: '메모 내용',
+    deleteAsk: '이 메모를 지울까요?', delete: '지우기', keep: '그대로 두기', changeColor: '메모 색 바꾸기 (지금 {color})',
+    unfold: '메모 펴기', fold: '메모 접기', emptyMemo: '빈 메모', memosFailed: '메모를 불러오지 못했어요. 새로고침해 주세요.',
+    firstMemo: '서랍에 오신 것을 환영해요.\n서랍 폴더 안 texts/에 글을, chatgpt/·claude/·gemini/·grok/에 AI 대화를 넣고 새로고침하세요.\n위쪽 띠를 끌면 메모를 옮길 수 있어요.',
+    setupTitle: '서랍 설정하기', settingsTitle: '서랍 설정',
+    setupIntro: '이 페이지가 보여 줄 Google Drive 폴더를 고르세요. 서랍은 그 폴더를 읽기만 하고, 요청할 때만 파일을 Drive 휴지통으로 옮기며, 메모는 그 폴더의 파일 하나에 저장해요.',
+    folder: 'Drive 폴더', folderHint: 'Google Drive에서 그 폴더를 열고 주소창의 주소를 붙여 넣으세요. 폴더 ID도 돼요.',
+    folderNow: '지금: {name}', pageTitle: '페이지 제목', ownerName: '내 이름',
+    ownerHint: '지은이가 이 이름이거나 비어 있는 글을 내 글로 보여 줘요.', timeZone: '시간대: {tz} (이 브라우저 기준)',
+    saveOpen: '저장하고 열기', checking: '폴더를 확인하는 중…', savedOpening: '저장했어요. 「{name}」 폴더를 여는 중…', settingsSaved: '설정을 저장했어요.',
+    langNames: { en: 'English', ko: '한국어', ja: '日本語', zh: '中文', es: 'Español', fr: 'Français', de: 'Deutsch' },
+  },
+};
+let LANG = /^ko\b/i.test(navigator.language || '') ? 'ko' : 'en';
+function tFor(lang, key, vars) {
+  const table = STRINGS[lang] || STRINGS.en;
+  const v = table[key] != null ? table[key] : STRINGS.en[key];
+  if (typeof v !== 'string') return v;
+  return v.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] != null ? String(vars[k]) : m));
+}
+const t = (key, vars) => tFor(LANG, key, vars);
+/** key1 when there is exactly one, key otherwise ("1 file", "2 files"). */
+const tn = (key, n, vars) => t(Number(n) === 1 ? key + '1' : key, Object.assign({ n: n }, vars || {}));
+const monthTitle = (y, m) => (LANG === 'ko' ? y + '년 ' + m + '월'
+  : new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long' }).format(new Date(y, m - 1, 1)));
+const dayName = (y, m, d) => (LANG === 'ko' ? m + '월 ' + d + '일'
+  : new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(y, m - 1, d)));
+
+/* ---------- small helpers shared by the drawer, the setup screen and the memos ---------- */
+const el = (tag, cls, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+};
+const button = (cls, text) => { const b = el('button', cls, text); b.type = 'button'; return b; };
+const link = (url, label) => {
+  const a = el('a', null, label);
+  a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  return a;
+};
+const store = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch {} },
+};
+function call(fn, arg) {
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](arg);
+  });
+}
+const errorText = err => (err && err.message ? err.message : String(err));
+
+/** Words that are in the page from the start: set again whenever the language is known or changes. */
+function applyStatic(d) {
+  document.documentElement.lang = LANG;
+  document.getElementById('brand-title').textContent = (d && d.title) || (LANG === 'ko' ? '서랍' : 'Drawer');
+  document.getElementById('brand-icon').setAttribute('aria-label', t('apricot'));
+  const q = document.getElementById('q');
+  q.placeholder = t('search');
+  q.setAttribute('aria-label', t('searchAria'));
+  document.getElementById('q-clear').setAttribute('aria-label', t('clearSearch'));
+  document.getElementById('only-me').textContent = t('onlyMe');
+  document.getElementById('memo-add-text').textContent = t('addMemo');
+  document.getElementById('nav').setAttribute('aria-label', t('navAria'));
+  document.getElementById('cal').setAttribute('aria-label', t('calAria'));
+  document.getElementById('memo-layer').setAttribute('aria-label', t('memos'));
+  document.getElementById('viewer').setAttribute('aria-label', t('viewer'));
+  document.getElementById('viewer-close').textContent = t('close');
+}
+
+/* ---------- setup screen: the first visit, and Settings later ---------- */
+function renderSetupForm(container, s, opts) {
+  opts = opts || {};
+  let lang = s.lang === 'ko' ? 'ko' : 'en';
+  const tl = (key, vars) => tFor(lang, key, vars);
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+  const form = el('form', 'setup');
+  form.noValidate = true;
+  const heading = el('h1', 'title');
+  const intro = el('p', 'setup-intro');
+  const field = (input, hint) => {
+    const box = el('label', 'c-field');
+    const label = el('span', 'c-label');
+    box.append(label, input);
+    if (hint) box.append(hint);
+    return { box, label };
+  };
+  const folder = el('input', 'c-input');
+  folder.inputMode = 'url'; folder.spellcheck = false; folder.autocapitalize = 'off'; folder.autocomplete = 'off';
+  folder.value = s.folderId ? 'https://drive.google.com/drive/folders/' + s.folderId : '';
+  const folderHint = el('span', 'c-hint');
+  const title = el('input', 'c-input');
+  title.maxLength = 60; title.value = s.title || '';
+  const owner = el('input', 'c-input');
+  owner.maxLength = 80; owner.value = s.owner || '';
+  const ownerHint = el('span', 'c-hint');
+  const folderField = field(folder, folderHint), titleField = field(title), ownerField = field(owner, ownerHint);
+  const langBox = el('div', 'c-field');
+  langBox.setAttribute('role', 'radiogroup');
+  const langLabel = el('span', 'c-label');
+  const seg = el('span', 'seg');
+  const chips = ['en', 'ko'].map(l => {
+    const c = button('chip', STRINGS.en.langNames[l]);
+    c.setAttribute('role', 'radio');
+    c.addEventListener('click', () => { lang = l; paint(); });
+    c.dataset.lang = l;
+    return c;
+  });
+  seg.append(...chips);
+  langBox.append(langLabel, seg);
+  const tzNote = el('p', 'c-hint');
+  tzNote.style.margin = '0 0 16px';
+  const error = el('p', 'c-error');
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  const actions = el('div', 'c-actions');
+  const save = el('button', 'c-save');
+  save.type = 'submit';
+  const cancel = opts.onCancel ? button('chip') : null;
+  if (cancel) { cancel.addEventListener('click', opts.onCancel); actions.append(cancel); }
+  actions.append(save);
+  function paint() {
+    heading.textContent = opts.settings ? tl('settingsTitle') : tl('setupTitle');
+    intro.textContent = tl('setupIntro');
+    folderField.label.textContent = tl('folder');
+    folderHint.textContent = (s.folderName ? tl('folderNow', { name: s.folderName }) + ' · ' : '') + tl('folderHint');
+    titleField.label.textContent = tl('pageTitle');
+    title.placeholder = lang === 'ko' ? '서랍' : 'Drawer';
+    ownerField.label.textContent = tl('ownerName');
+    ownerHint.textContent = tl('ownerHint');
+    langLabel.textContent = tl('language');
+    chips.forEach(c => { const on = c.dataset.lang === lang; c.setAttribute('aria-checked', String(on)); c.tabIndex = on ? 0 : -1; });
+    tzNote.textContent = tz ? tl('timeZone', { tz }) : '';
+    save.textContent = tl('saveOpen');
+    if (cancel) cancel.textContent = tl('cancel');
+  }
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    error.hidden = true;
+    save.disabled = true;
+    save.textContent = tl('checking');
+    call('saveSettings', { folder: folder.value, title: title.value, owner: owner.value, lang, timeZone: tz }).then(res => {
+      LANG = lang;
+      save.textContent = tl('savedOpening', { name: res.folderName || '' });
+      if (opts.onSaved) opts.onSaved(res);
+    }, err => {
+      save.disabled = false;
+      save.textContent = tl('saveOpen');
+      error.textContent = errorText(err);
+      error.hidden = false;
+    });
+  });
+  form.append(heading, intro, folderField.box, titleField.box, ownerField.box, langBox, tzNote, error, actions);
+  paint();
+  container.append(form);
+  if (!s.folderId) folder.focus({ preventScroll: true });
+}
+
+/* ---------- the drawer ---------- */
+function start(data) {
+  const nav = document.getElementById('nav');
+  const reader = document.getElementById('reader');
+  const cal = document.getElementById('cal');
+  const q = document.getElementById('q');
+  const qClear = document.getElementById('q-clear');
+  const CHEVRON = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const LOCK = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
+  const norm = s => String(s || '').normalize('NFC').toLowerCase();
+  const pad = n => String(n).padStart(2, '0');
+  const now = new Date();
+  const TODAY = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+
+  const flatten = d => {
+    const all = d.groups.flatMap(g => g.items.map(i => ({ ...i, group: g.key })));
+    for (const i of all) {
+      i.hay = norm([i.title, i.sub, i.author, i.publisher, i.type, i.status, i.note, i.rights, i.source && i.source.label, i.body,
+        i.image && i.image.alt, i.account, i.project, i.service, i.category, i.surveyMemo, i.overlaps, i.relatedTitle, i.fileName,
+        ...(i.aiOutputs || []), ...(i.assets || []).map(a => a.title + ' ' + a.alt),
+        ...Object.values(i.byLang || {}).flatMap(v => [v.title, v.type, ...v.tags]),
+        ...(i.tags || []), ...Object.values(i.bodies || {})].filter(Boolean).join('\n'));
+    }
+    return all;
+  };
+  let items = flatten(data);
+  // Every group starts folded each time the drawer opens. Opened groups are remembered while the page is open.
+  const expanded = new Set();
+  let current = null, query = '', calYm = null, calSel = null;
+  const buttons = new Map();
+
+  const terms = () => norm(query).split(/\s+/).filter(Boolean);
+  const visible = () => { const tt = terms(); return tt.length ? items.filter(i => tt.every(w => i.hay.includes(w))) : items; };
+  const dated = i => (i.kind === 'text' || i.kind === 'chat') && /^\d{4}-\d{2}/.test(i.date || '');
+  const isMobile = () => matchMedia('(max-width: 720px)').matches;
+  const scrollToReader = () => {
+    if (!isMobile()) return;
+    reader.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  };
+  // Underline the search words inside a title (built from text nodes only).
+  function highlighted(text) {
+    const frag = document.createDocumentFragment();
+    const tt = terms();
+    if (!tt.length) { frag.append(text); return frag; }
+    const lower = norm(text);
+    let i = 0;
+    while (i < text.length) {
+      let hit = null;
+      for (const w of tt) { const at = lower.indexOf(w, i); if (at !== -1 && (!hit || at < hit[0])) hit = [at, w.length]; }
+      if (!hit) { frag.append(text.slice(i)); break; }
+      if (hit[0] > i) frag.append(text.slice(i, hit[0]));
+      frag.append(el('mark', null, text.slice(hit[0], hit[0] + hit[1])));
+      i = hit[0] + hit[1];
+    }
+    return frag;
+  }
+
+  /* ---------- list ---------- */
+  function renderNav() {
+    nav.replaceChildren();
+    buttons.clear();
+    const vis = visible();
+    const searching = terms().length > 0;
+    if (searching) {
+      const found = el('div', 'found');
+      found.append(el('span', null, t('found', { n: vis.length })));
+      nav.append(found);
+    }
+    for (const group of data.groups) {
+      const groupItems = vis.filter(i => i.group === group.key);
+      if (!groupItems.length) continue;
+      const open = searching || expanded.has(group.key);
+      const head = button('group-head');
+      head.setAttribute('aria-expanded', String(open));
+      head.append(el('span', null, group.label + ' · ' + groupItems.length));
+      head.insertAdjacentHTML('beforeend', CHEVRON);
+      head.addEventListener('click', () => {
+        if (searching) return;
+        expanded.has(group.key) ? expanded.delete(group.key) : expanded.add(group.key);
+        renderNav();
+      });
+      nav.append(head);
+      if (!open) continue;
+      for (const item of groupItems) {
+        const b = button('item');
+        const tt = el('span', 't'); tt.append(highlighted(item.title));
+        b.append(tt, el('span', 's', item.sub));
+        b.setAttribute('aria-current', String(item.id === current));
+        b.addEventListener('click', () => { show(item.id); scrollToReader(); });
+        buttons.set(item.id, b);
+        nav.append(b);
+      }
+    }
+    if (!vis.length) nav.append(el('p', 'empty', t('nothing')));
+  }
+
+  /* ---------- calendar ---------- */
+  function renderCal() {
+    cal.replaceChildren();
+    const onCal = visible().filter(dated);
+    const months = [...new Set(onCal.map(i => i.date.slice(0, 7)))].sort();
+    if (!calYm) calYm = months[months.length - 1] || TODAY.slice(0, 7);
+    const [y, m] = calYm.split('-').map(Number);
+    const prev = months.filter(x => x < calYm).pop();
+    const next = months.find(x => x > calYm);
+
+    const head = el('div', 'cal-head');
+    head.append(el('p', 'cal-title', monthTitle(y, m)));
+    const arrows = el('div', 'cal-arrows');
+    const mk = (label, target, glyph) => {
+      const b = button('cal-arrow');
+      b.setAttribute('aria-label', label);
+      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="' + glyph + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      b.disabled = !target;
+      b.addEventListener('click', () => { calYm = target; calSel = null; renderCal(); });
+      return b;
+    };
+    arrows.append(mk(t('prevMonth'), prev, 'M7.5 2.5L4 6l3.5 3.5'), mk(t('nextMonth'), next, 'M4.5 2.5L8 6l-3.5 3.5'));
+    head.append(arrows);
+    cal.append(head);
+
+    const grid = el('div', 'cal-grid');
+    for (const d of t('weekdays')) grid.append(el('span', 'cal-dow', d));
+    const first = new Date(y, m - 1, 1).getDay();
+    const days = new Date(y, m, 0).getDate();
+    for (let i = 0; i < first; i++) grid.append(el('span', 'cal-day'));
+    for (let d = 1; d <= days; d++) {
+      const date = calYm + '-' + pad(d);
+      const entries = onCal.filter(i => i.date === date);
+      const cell = entries.length ? button('cal-day', String(d)) : el('span', 'cal-day', String(d));
+      if (date === calSel) cell.classList.add('sel');
+      if (date === TODAY) cell.classList.add('today');
+      if (entries.length) {
+        cell.setAttribute('aria-label', tn('dayAria', entries.length, { date: dayName(y, m, d) }));
+        cell.addEventListener('click', () => {
+          calSel = date;
+          if (entries.length === 1) { show(entries[0].id); scrollToReader(); } else renderCal();
+        });
+      }
+      grid.append(cell);
+    }
+    cal.append(grid);
+
+    const undated = onCal.filter(i => i.date === calYm);
+    if (undated.length) {
+      const u = button('cal-undated', t('undated', { titles: undated.map(i => i.title).join(', ') }));
+      u.addEventListener('click', () => {
+        calSel = 'u-' + calYm;
+        if (undated.length === 1) { show(undated[0].id); scrollToReader(); } else renderCal();
+      });
+      cal.append(u);
+    }
+
+    const selected = calSel && onCal.filter(i => i.date === (calSel.startsWith('u-') ? calSel.slice(2) : calSel));
+    if (selected && selected.length) {
+      const entryList = el('div', 'cal-list');
+      for (const item of selected) {
+        const b = button('cal-entry');
+        b.append(item.title, el('small', null, item.sub));
+        b.setAttribute('aria-current', String(item.id === current));
+        b.addEventListener('click', () => { show(item.id); scrollToReader(); });
+        entryList.append(b);
+      }
+      cal.append(entryList);
+    } else if (!months.length) {
+      cal.append(el('p', 'cal-none', terms().length ? t('noDatedFound') : t('noDated')));
+    }
+    const built = el('p', 'built', t('updated', { when: data.built }) + ' · ');
+    const settings = button('link-btn', t('settings'));
+    settings.addEventListener('click', openSettings);
+    built.append(settings);
+    cal.append(built);
+  }
+
+  /* ---------- reading pane ---------- */
+  function header(item, metaText, controls, titleText) {
+    const row = el('div', 'meta-row');
+    row.append(el('p', 'meta', metaText));
+    if (controls) row.append(controls);
+    reader.append(row, el('h1', 'title', titleText || item.title));
+  }
+
+  function renderText(item, lang) {
+    const langs = item.langs;
+    lang = langs.includes(lang) ? lang : langs[0];
+    const v = (item.byLang && item.byLang[lang]) || {};
+    let seg = null;
+    if (langs.length > 1) {
+      seg = el('div', 'seg');
+      seg.setAttribute('role', 'group');
+      seg.setAttribute('aria-label', t('language'));
+      for (const l of langs) {
+        const chip = button('chip', t('langNames')[l] || l.toUpperCase());
+        chip.setAttribute('aria-pressed', String(l === lang));
+        chip.addEventListener('click', () => { store.set('drawer-lang-' + item.id, l); show(item.id); });
+        seg.append(chip);
+      }
+    }
+    header(item, [v.status || v.type || item.status || item.type, item.dateLabel].filter(Boolean).join(' · '), seg, v.title);
+    const byline = el('p', 'byline');
+    if (item.own) {
+      byline.append(data.owner || t('me'));
+      if (!item.service && item.source.label) {
+        byline.append(' · ');
+        byline.append(item.source.url ? link(item.source.url, item.source.label + ' ↗') : item.source.label);
+      }
+    } else {
+      byline.append([item.author, item.publisher].filter(Boolean).join(' · '));
+    }
+    // Kept from an AI chat: a chip that opens that conversation (or says it is in the trash or gone).
+    if (item.service) byline.append(' · ', ...relatedNodes(item));
+    reader.append(byline);
+    const body = el('div', 'body', item.bodies[lang]);
+    body.lang = lang;
+    reader.append(body);
+    if (item.image) reader.append(figure(item.image));
+    const foot = el('div', 'foot');
+    if (item.rights) {
+      const pill = el('span', 'pill');
+      pill.innerHTML = LOCK;
+      pill.append(t('notForSharing'));
+      foot.append(pill, el('span', null, item.rights));
+    } else {
+      foot.append(el('span', null, item.own ? t('minePrivate') : t('private')));
+    }
+    if (item.note) foot.append(el('span', null, item.note));
+    const tags = v.tags && v.tags.length ? v.tags : item.tags;
+    if (tags.length) foot.append(el('span', null, tags.join(' · ')));
+    reader.append(foot);
+  }
+
+  /* Markdown bodies: headings, paragraphs, lists, tables, fences and file lines only; all text goes in as text nodes. */
+  function inline(text, assets) {
+    const frag = document.createDocumentFragment();
+    const re = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) frag.append(text.slice(last, m.index));
+      const tok = m[0];
+      if (tok[0] === '`') frag.append(el('code', null, tok.slice(1, -1)));
+      else if (tok[0] === '*') frag.append(el('strong', null, tok.slice(2, -2)));
+      else {
+        // [name](file): a file of this conversation opens in Drive, a web address opens as a link, anything else stays text.
+        const parts = tok.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+        const asset = assets && assets.get(parts[2]);
+        if (asset && asset.url) frag.append(link(asset.url, parts[1]));
+        else if (/^https?:\/\//.test(parts[2])) frag.append(link(parts[2], parts[1]));
+        else frag.append(parts[1]);
+      }
+      last = m.index + tok.length;
+    }
+    if (last < text.length) frag.append(text.slice(last));
+    return frag;
+  }
+  function markdown(src, title, assets) {
+    const assetByName = new Map((assets || []).map(a => [a.file, a]));
+    const inl = s => inline(s, assetByName);
+    const root = el('div', 'md');
+    const lines = src.split('\n');
+    const isBlock = l => /^(#{1,4}\s|\s*\||\s*[-*]\s|\s*(~{3,}|`{3,})|\s*-{3,}\s*$|\s*!?\[[^\]]*\]\([^)\s]+\)\s*$)/.test(l);
+    const cells = row => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim()) { i++; continue; }
+      // Verbatim fence (~~~text … ~~~): shown exactly as written.
+      const fence = line.match(/^\s*(~{3,}|`{3,})/);
+      if (fence) {
+        const mark = fence[1];
+        const close = new RegExp('^\\s*' + (mark[0] === '~' ? '~' : '`') + '{' + mark.length + ',}\\s*$');
+        const buf = [];
+        i++;
+        while (i < lines.length && !close.test(lines[i])) buf.push(lines[i++]);
+        i++;
+        root.append(el('div', 'verbatim', buf.join('\n')));
+        continue;
+      }
+      if (/^\s*-{3,}\s*$/.test(line)) { root.append(el('hr')); i++; continue; }
+      const h = line.match(/^(#{1,4})\s+(.*)$/);
+      if (h) {
+        i++;
+        if (h[1].length === 1 && h[2].trim() === title) continue; // the first heading repeats the title
+        const node = el('h' + (h[1].length + 1));
+        node.append(inl(h[2].trim()));
+        root.append(node);
+        continue;
+      }
+      if (/^\s*\|/.test(line)) {
+        const rows = [];
+        while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+        const table = el('table');
+        const head = cells(rows[0]);
+        const thead = el('thead'), tr = el('tr');
+        head.forEach(c => { const th = el('th'); th.append(inl(c)); tr.append(th); });
+        thead.append(tr); table.append(thead);
+        const tbody = el('tbody');
+        for (const row of rows.slice(1)) {
+          if (/^[\s|:-]+$/.test(row)) continue;
+          const r = el('tr');
+          cells(row).forEach(c => { const td = el('td'); if (/^[✓✔○●]$/.test(c)) td.className = 'c'; td.append(inl(c)); r.append(td); });
+          tbody.append(r);
+        }
+        table.append(tbody);
+        const wrap = el('div', 'table-wrap'); wrap.append(table);
+        root.append(wrap);
+        continue;
+      }
+      if (/^\s*[-*]\s+/.test(line)) {
+        const ul = el('ul');
+        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+          const li = el('li'); li.append(inl(lines[i].replace(/^\s*[-*]\s+/, '').trim())); ul.append(li); i++;
+        }
+        root.append(ul);
+        continue;
+      }
+      // A file line: ![alt](file) shows the picture, [name](file) links to Drive. Only file names from the same folder are used.
+      const media = line.match(/^\s*(!?)\[([^\]]*)\]\(([^)\s]+)\)\s*$/);
+      if (media) {
+        i++;
+        const asset = assetByName.get(media[3]);
+        if (asset && asset.image && asset.id) { root.append(figure({ id: asset.id, alt: asset.alt || media[2] })); continue; }
+        const row = el('p', 'file-link');
+        if (asset && asset.url) {
+          row.append(link(asset.url, t('openInDrive', { name: media[2] || asset.title })));
+          if (asset.sizeKb) row.append(el('small', null, ' ' + asset.sizeKb + 'KB'));
+        } else if (/^https?:\/\//.test(media[3]) && !media[1]) {
+          row.append(link(media[3], media[2] + ' ↗'));
+        } else {
+          row.append(el('span', 'missing', t('notInFolder', { name: media[2] || media[3], file: media[3] })));
+        }
+        root.append(row);
+        continue;
+      }
+      const p = el('p');
+      let firstLine = true;
+      while (i < lines.length && lines[i].trim() && !isBlock(lines[i])) {
+        if (!firstLine) p.append(el('br'));
+        p.append(inl(lines[i].trim()));
+        firstLine = false; i++;
+      }
+      root.append(p);
+    }
+    return root;
+  }
+
+  /* Photos: limited height in the reading pane, larger when selected. */
+  const viewer = document.getElementById('viewer');
+  const viewerImg = document.getElementById('viewer-img');
+  document.getElementById('viewer-close').addEventListener('click', () => viewer.close());
+  viewer.addEventListener('click', e => { if (e.target === viewer) viewer.close(); });
+  // A photo loads from Drive when its item opens; once loaded it is reused while the page is open.
+  const imageCache = new Map();
+  function loadImage(id) {
+    if (!imageCache.has(id)) imageCache.set(id, call('getImage', id));
+    return imageCache.get(id);
+  }
+  function figure(image) {
+    const fig = el('figure', 'figure');
+    const b = button('figure-btn');
+    b.setAttribute('aria-label', t('viewLarger', { alt: image.alt }));
+    b.disabled = true;
+    const img = el('img');
+    img.alt = image.alt; img.decoding = 'async';
+    const caption = el('figcaption', null, t('loadingPhoto'));
+    b.append(img);
+    loadImage(image.id).then(src => {
+      img.src = src;
+      b.disabled = false;
+      caption.textContent = t('enlarge', { alt: image.alt });
+    }, () => {
+      imageCache.delete(image.id);
+      b.hidden = true;
+      caption.textContent = t('photoFailed', { alt: image.alt });
+    });
+    b.addEventListener('click', () => {
+      viewerImg.src = img.src; viewerImg.alt = image.alt;
+      document.getElementById('viewer-caption').textContent = image.alt;
+      try { viewer.showModal(); viewer.scrollTop = 0; } catch {}
+    });
+    fig.append(b, caption);
+    return fig;
+  }
+
+  function renderChat(item) {
+    const when = item.dateLabel + (item.dateEndLabel && item.dateEndLabel !== item.dateLabel ? ' ~ ' + item.dateEndLabel : '');
+    header(item, [t('chat', { service: item.service }), item.category, when].filter(Boolean).join(' · '));
+    const who = [[item.account, item.chatNo && '#' + item.chatNo].filter(Boolean).join(' '), item.project && t('project', { name: item.project })]
+      .filter(Boolean).join(' · ');
+    if (who || item.chatUrl) {
+      const byline = el('p', 'byline');
+      if (who) byline.append(who);
+      if (item.chatUrl) { if (who) byline.append(' · '); byline.append(link(item.chatUrl, t('openIn', { service: item.service }))); }
+      reader.append(byline);
+    }
+    if (item.authorship && /check|확인/i.test(item.authorship)) {
+      const flag = el('p', 'flag');
+      flag.append(el('span', 'pill', t('authorship', { value: item.authorship })));
+      if (item.surveyMemo) flag.append(el('span', null, item.surveyMemo));
+      reader.append(flag);
+    }
+    reader.append(markdown(item.body, item.title, item.assets));
+    const foot = el('div', 'foot');
+    const lost = item.assets.filter(a => !a.found).length;
+    [
+      item.userTurns && tn('myTurns', item.userTurns),
+      item.assets.length && (lost ? tn('filesMissing', item.assets.length, { m: lost }) : tn('files', item.assets.length)),
+      item.missing && t('missing', { text: item.missing }),
+      item.attachments.length && t('attachments', { text: item.attachments.join(', ') }),
+      item.aiOutputs.length && t('aiOutputs', { text: item.aiOutputs.join(', ') }),
+      item.codeOutputs.length && t('codeOutputs', { text: item.codeOutputs.join(', ') }),
+      item.overlaps && t('overlaps', { text: item.overlaps }),
+      item.tags.length && item.tags.join(' · '),
+    ].filter(Boolean).forEach(f => foot.append(el('span', null, f)));
+    for (const name of item.related) {
+      const target = items.find(i => i.kind === 'chat' && (i.file === name || i.file === name + '.md'));
+      if (!target) { foot.append(el('span', null, t('related', { title: name }))); continue; }
+      const chip = button('chip', t('related', { title: target.title }));
+      chip.addEventListener('click', () => { show(target.id); scrollToReader(); });
+      foot.append(chip);
+    }
+    reader.append(foot);
+  }
+
+  // A related conversation: a chip when it is in the drawer, otherwise its kept title and where it went.
+  function relatedNodes(item) {
+    if (item.related) {
+      const chat = items.find(i => i.kind === 'chat' && (i.file === item.related || i.file === item.related + '.md') && (!item.service || i.service === item.service));
+      if (chat) {
+        const chip = button('chip', t('related', { title: chat.title }));
+        chip.addEventListener('click', () => { show(chat.id); scrollToReader(); });
+        return [chip];
+      }
+      const inTrash = items.some(i => i.kind === 'trash' && i.fileName === item.related);
+      return [t('relatedChat', { title: item.relatedTitle || item.related, where: t(inTrash ? 'inTrash' : 'notInDrawer') })];
+    }
+    return item.service ? [t('fromChat', { service: item.service })] : [];
+  }
+
+  function show(id) {
+    const item = items.find(i => i.id === id) || items.find(i => i.kind !== 'trash') || items[0];
+    reader.replaceChildren();
+    if (!item) {
+      reader.append(el('p', 'empty', t('empty')));
+      renderCal();
+      return;
+    }
+    current = item.id;
+    store.set('drawer-selected', item.id);
+    for (const [key, b] of buttons) b.setAttribute('aria-current', String(key === item.id));
+    if (item.kind === 'text') renderText(item, store.get('drawer-lang-' + item.id) || LANG);
+    else if (item.kind === 'chat') renderChat(item);
+    else renderTrash(item);
+    if ((item.kind === 'text' || item.kind === 'chat') && item.fileIds && item.fileIds.length) {
+      const foot = reader.querySelector('.foot') || reader.appendChild(el('div', 'foot'));
+      foot.append(trashControl(item));
+    }
+    // Turn the calendar to the month of the record being read.
+    if (dated(item)) {
+      calYm = item.date.slice(0, 7);
+      calSel = item.date.length === 7 ? 'u-' + item.date : item.date;
+    }
+    renderCal();
+  }
+
+  /* ---------- trash: into the Drive trash (Google deletes it after 30 days); restored from the Trash group ---------- */
+  const toast = document.getElementById('toast');
+  let toastTimer = null;
+  function notify(message, action) {
+    clearTimeout(toastTimer);
+    toast.replaceChildren(el('span', null, message));
+    if (action) {
+      const b = button('chip', action.label);
+      b.addEventListener('click', () => { toast.hidden = true; action.run(); });
+      toast.append(b);
+    }
+    toast.hidden = false;
+    toastTimer = setTimeout(() => { toast.hidden = true; }, action ? 10000 : 4000);
+  }
+  function reload(selectId) {
+    return call('getDrawer').then(d => {
+      data = d;
+      LANG = d.lang === 'ko' ? 'ko' : 'en';
+      applyStatic(d);
+      items = flatten(d);
+      renderNav();
+      show(selectId && items.some(i => i.id === selectId) ? selectId : (items.find(i => i.kind !== 'trash') || {}).id);
+    });
+  }
+  function trashControl(item) {
+    const box = el('span', 'trash-box');
+    const startBtn = button('chip danger', t('toTrash'));
+    startBtn.addEventListener('click', () => {
+      const ask = el('span', 'trash-ask', t('trashAsk'));
+      const yes = button('chip danger', t('move'));
+      const no = button('chip', t('cancel'));
+      no.addEventListener('click', () => box.replaceChildren(startBtn));
+      yes.addEventListener('click', () => {
+        yes.disabled = no.disabled = true;
+        yes.textContent = t('moving');
+        call('trashItem', item.fileIds).then(() => reload(null)).then(() => {
+          notify(t('moved', { title: item.title }), {
+            label: t('undo'),
+            run: () => call('restoreItem', item.fileIds).then(() => reload(item.id))
+              .then(() => notify(t('undone')), err => notify(t('undoFailed', { error: errorText(err) }))),
+          });
+        }, err => {
+          box.replaceChildren(startBtn);
+          notify(t('moveFailed', { error: errorText(err) }));
+        });
+      });
+      box.replaceChildren(ask, yes, no);
+    });
+    box.append(startBtn);
+    return box;
+  }
+  function renderTrash(item) {
+    header(item, [t('trash'), item.folderLabel, item.trashedLabel && t('trashedOn', { date: item.trashedLabel })].filter(Boolean).join(' · '));
+    reader.append(el('p', 'byline', item.fileName));
+    const panel = el('div', 'panel');
+    panel.append(el('p', null, t('trashNote')));
+    if (item.fileCount > 1) panel.append(el('p', null, t('trashFiles', { n: item.fileCount })));
+    panel.append(el('p', null, t('trashNote2')));
+    reader.append(panel);
+    const foot = el('div', 'foot');
+    const restore = button('chip', t('restore'));
+    restore.addEventListener('click', () => {
+      restore.disabled = true;
+      restore.textContent = t('restoring');
+      call('restoreItem', item.fileIds).then(() => reload(item.restoreId)).then(() => notify(t('restored')), err => {
+        restore.disabled = false;
+        restore.textContent = t('restore');
+        notify(t('restoreFailed', { error: errorText(err) }));
+      });
+    });
+    foot.append(restore);
+    reader.append(foot);
+  }
+
+  /* ---------- settings ---------- */
+  function openSettings() {
+    reader.replaceChildren(el('p', 'empty', t('opening')));
+    scrollToReader();
+    call('getSettings').then(s => {
+      reader.replaceChildren();
+      renderSetupForm(reader, s, {
+        settings: true,
+        onCancel: () => show(current),
+        onSaved: () => reload(current).then(() => notify(t('settingsSaved')), err => notify(errorText(err))),
+      });
+    }, err => { reader.replaceChildren(el('p', 'empty', errorText(err))); });
+  }
+
+  /* ---------- search ---------- */
+  q.addEventListener('input', () => {
+    query = q.value;
+    qClear.hidden = !query;
+    calYm = null; calSel = null;
+    renderNav();
+    const vis = visible();
+    if (vis.length && !vis.some(i => i.id === current) && terms().length) show(vis[0].id);
+    else renderCal();
+  });
+  const clearSearch = () => { q.value = ''; q.dispatchEvent(new Event('input')); q.focus(); };
+  qClear.addEventListener('click', clearSearch);
+  q.addEventListener('keydown', e => { if (e.key === 'Escape' && q.value) { e.preventDefault(); clearSearch(); } });
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+  });
+
+  renderNav();
+  show(store.get('drawer-selected'));
+}
+
+/* ---------- opening: the drawer, or the setup screen on the first visit ---------- */
+(function boot() {
+  applyStatic();
+  const reader = document.getElementById('reader');
+  const note = el('p', 'empty', t('opening'));
+  reader.append(note);
+  const open = d => {
+    LANG = d.lang === 'ko' ? 'ko' : 'en';
+    applyStatic(d);
+    reader.replaceChildren();
+    if (d.needsSetup) {
+      document.body.classList.add('is-setup');
+      renderSetupForm(reader, { lang: d.lang }, {
+        onSaved: () => call('getDrawer').then(next => { document.body.classList.remove('is-setup'); open(next); },
+          err => { reader.replaceChildren(el('p', 'empty', t('openFailed', { error: errorText(err) }))); }),
+      });
+      return;
+    }
+    start(d);
+    initMemos();
+  };
+  call('getDrawer').then(open, err => { note.textContent = t('openFailed', { error: errorText(err) }); });
+})();
+
+/* ---------- memos (sticky notes) ---------- */
+function initMemos() {
+  if (initMemos.started) return;
+  initMemos.started = true;
+  const layer = document.getElementById('memo-layer');
+  const addBtn = document.getElementById('memo-add');
+  const COLORS = ['butter', 'apricot', 'lilac'];
+  const narrow = () => matchMedia('(max-width: 720px)').matches;
+  let memos = [];
+  let ready = false;
+  let topZ = 10;
+  const nodes = new Map();
+
+  const uid = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const now = () => new Date().toISOString();
+  const icon = path => '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+
+  /* Saving: changes are gathered for 0.6 seconds and sent one save at a time. */
+  let saveTimer = null, saving = false, again = false;
+  function setStatus(text) { for (const [id, n] of nodes) { const m = memos.find(x => x.id === id); if (!m || !m.folded) n.status.textContent = text; } }
+  function scheduleSave() {
+    if (!ready) return;
+    clearTimeout(saveTimer);
+    setStatus(t('waitSave'));
+    saveTimer = setTimeout(flush, 600);
+  }
+  function flush() {
+    if (saving) { again = true; return; }
+    saving = true;
+    setStatus(t('saving'));
+    call('saveMemos', memos).then(() => {
+      saving = false;
+      if (again) { again = false; flush(); return; }
+      setStatus(t('saved'));
+      setTimeout(() => { if (!saving) setStatus(''); }, 1600);
+    }, err => {
+      saving = false;
+      setStatus(t('saveFailed'));
+      console.warn(err);
+    });
+  }
+  function flushSoon() { clearTimeout(saveTimer); setTimeout(flush, 0); }
+
+  function linkify(view, text) {
+    view.replaceChildren();
+    if (!text.trim()) {
+      view.append(el('span', 'memo-placeholder', t('memoPlaceholder')));
+      return;
+    }
+    const re = /https?:\/\/[^\s<>"']+/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) view.append(text.slice(last, m.index));
+      const url = m[0].replace(/[).,]+$/, '');
+      view.append(link(url, url));
+      last = m.index + url.length;
+      re.lastIndex = last;
+    }
+    if (last < text.length) view.append(text.slice(last));
+  }
+
+  function place(memo) {
+    const n = nodes.get(memo.id);
+    if (!n) return;
+    if (narrow()) { n.el.style.left = ''; n.el.style.top = ''; return; }
+    const room = Math.max(0, layer.clientWidth - n.el.offsetWidth);
+    n.el.style.left = Math.round(memo.x * room) + 'px';
+    n.el.style.top = Math.round(memo.y) + 'px';
+  }
+
+  function render(memo, focusEdit) {
+    const box = document.createElement('section');
+    box.className = 'memo memo--' + memo.color + (memo.folded ? ' is-folded' : '');
+    box.setAttribute('aria-label', t('memo'));
+    box.style.zIndex = ++topZ;
+    box.innerHTML =
+      '<div class="memo-bar">' +
+        '<span class="memo-status" aria-live="polite"></span>' +
+        '<button type="button" class="memo-btn" data-act="color"><span class="memo-dot"></span></button>' +
+        '<button type="button" class="memo-btn" data-act="fold"></button>' +
+        '<button type="button" class="memo-btn" data-act="delete">' + icon('<path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/>') + '</button>' +
+      '</div>' +
+      '<div class="memo-view" tabindex="0" role="button"></div>' +
+      '<textarea class="memo-edit" hidden></textarea>' +
+      '<div class="memo-confirm" hidden><span></span><button type="button" data-act="really"></button><button type="button" data-act="keep"></button></div>';
+    const n = {
+      el: box, status: box.querySelector('.memo-status'), view: box.querySelector('.memo-view'),
+      edit: box.querySelector('.memo-edit'), confirm: box.querySelector('.memo-confirm'),
+      color: box.querySelector('[data-act="color"]'), fold: box.querySelector('[data-act="fold"]'),
+    };
+    box.querySelector('[data-act="delete"]').setAttribute('aria-label', t('deleteMemo'));
+    n.view.setAttribute('aria-label', t('editMemo'));
+    n.edit.setAttribute('aria-label', t('memoText'));
+    n.confirm.querySelector('span').textContent = t('deleteAsk');
+    n.confirm.querySelector('[data-act="really"]').textContent = t('delete');
+    n.confirm.querySelector('[data-act="keep"]').textContent = t('keep');
+    nodes.set(memo.id, n);
+    const sync = () => {
+      n.color.setAttribute('aria-label', t('changeColor', { color: t('colors')[memo.color] }));
+      n.fold.setAttribute('aria-label', memo.folded ? t('unfold') : t('fold'));
+      n.fold.setAttribute('aria-expanded', String(!memo.folded));
+      n.fold.innerHTML = icon(memo.folded ? '<path d="M3.5 5.5L7 9l3.5-3.5"/>' : '<path d="M3.5 8.5L7 5l3.5 3.5"/>');
+      if (memo.folded) n.status.textContent = memo.text.split('\n')[0].slice(0, 40) || t('emptyMemo');
+    };
+    linkify(n.view, memo.text);
+    sync();
+
+    const startEdit = () => {
+      n.edit.value = memo.text;
+      n.view.hidden = true; n.edit.hidden = false;
+      n.edit.focus();
+      n.edit.setSelectionRange(n.edit.value.length, n.edit.value.length);
+    };
+    const endEdit = () => {
+      if (n.edit.hidden) return;
+      if (n.edit.value !== memo.text) { memo.text = n.edit.value; memo.updated = now(); scheduleSave(); }
+      n.edit.hidden = true; n.view.hidden = false;
+      linkify(n.view, memo.text);
+      place(memo);
+    };
+    // Save while typing, so closing the page mid-sentence keeps the text.
+    n.edit.addEventListener('input', () => { memo.text = n.edit.value; memo.updated = now(); scheduleSave(); });
+    n.view.addEventListener('click', e => { if (!e.target.closest('a')) startEdit(); });
+    n.view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } });
+    n.edit.addEventListener('blur', endEdit);
+    n.edit.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); n.edit.blur(); } });
+
+    box.addEventListener('click', e => {
+      const act = e.target.closest('[data-act]');
+      if (!act) return;
+      const a = act.dataset.act;
+      if (a === 'color') {
+        box.classList.remove('memo--' + memo.color);
+        memo.color = COLORS[(COLORS.indexOf(memo.color) + 1) % COLORS.length];
+        box.classList.add('memo--' + memo.color);
+        memo.updated = now(); sync(); scheduleSave();
+      } else if (a === 'fold') {
+        memo.folded = !memo.folded;
+        box.classList.toggle('is-folded', memo.folded);
+        if (!memo.folded) n.status.textContent = '';
+        memo.updated = now(); sync(); place(memo); scheduleSave();
+      } else if (a === 'delete') {
+        n.confirm.hidden = false;
+        n.confirm.querySelector('[data-act="keep"]').focus();
+      } else if (a === 'keep') {
+        n.confirm.hidden = true;
+      } else if (a === 'really') {
+        memos = memos.filter(m => m !== memo);
+        nodes.delete(memo.id);
+        box.remove();
+        flushSoon();
+      }
+    });
+
+    /* Dragging: hold the top bar and move (not when the press starts on a button). */
+    const bar = box.querySelector('.memo-bar');
+    bar.addEventListener('pointerdown', e => {
+      box.style.zIndex = ++topZ;
+      if (narrow() || e.button !== 0 || e.target.closest('button')) return;
+      e.preventDefault();
+      const area = layer.getBoundingClientRect();
+      const startLeft = box.offsetLeft, startTop = box.offsetTop, sx = e.clientX, sy = e.clientY;
+      let moved = false;
+      bar.setPointerCapture(e.pointerId);
+      box.classList.add('is-dragging');
+      const move = ev => {
+        const left = Math.min(Math.max(0, startLeft + ev.clientX - sx), Math.max(0, area.width - box.offsetWidth));
+        const top = Math.min(Math.max(0, startTop + ev.clientY - sy), Math.max(0, area.height - 32));
+        box.style.left = left + 'px'; box.style.top = top + 'px';
+        moved = true;
+      };
+      const up = () => {
+        bar.removeEventListener('pointermove', move);
+        bar.removeEventListener('pointerup', up);
+        bar.removeEventListener('pointercancel', up);
+        box.classList.remove('is-dragging');
+        if (!moved) return;
+        const room = Math.max(1, layer.clientWidth - box.offsetWidth);
+        memo.x = Math.min(1, Math.max(0, box.offsetLeft / room));
+        memo.y = box.offsetTop;
+        memo.updated = now();
+        scheduleSave();
+      };
+      bar.addEventListener('pointermove', move);
+      bar.addEventListener('pointerup', up);
+      bar.addEventListener('pointercancel', up);
+    });
+
+    layer.append(box);
+    place(memo);
+    if (focusEdit) startEdit();
+  }
+
+  function addMemo(text, opts) {
+    const count = memos.length;
+    const memo = Object.assign({
+      id: uid(), text: text || '', x: Math.max(0, 0.66 - (count % 5) * 0.04), y: 76 + (count % 5) * 26,
+      color: COLORS[count % COLORS.length], folded: false, updated: now(),
+    }, opts || {});
+    memos.push(memo);
+    render(memo, !text);
+    scheduleSave();
+    return memo;
+  }
+
+  addBtn.addEventListener('click', () => {
+    if (!ready) return;
+    addMemo('');
+    if (narrow()) layer.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  });
+  window.addEventListener('resize', () => memos.forEach(place));
+
+  call('getMemos').then(res => {
+    if (res && res.notSetUp) return;
+    memos = Array.isArray(res && res.memos) ? res.memos : [];
+    memos.forEach(m => render(m));
+    ready = true;
+    addBtn.disabled = false;
+    if (!res || res.memos === null) addMemo(t('firstMemo'), { x: 0.7, y: 76, color: 'butter' });
+  }, err => {
+    addBtn.title = t('memosFailed');
+    console.warn(err);
+  });
+}
+</script>
+</body>
+</html>

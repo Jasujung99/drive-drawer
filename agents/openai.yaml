@@ -1,0 +1,4 @@
+interface:
+  display_name: "Drive Drawer · 드라이브 서랍"
+  short_description: "A private one-page reader for your Google Drive writing and AI chat archives"
+  default_prompt: "Use $drive-drawer to set up a private Drive Drawer for my Google Drive folder: agree the folder and language with me, walk me through the Apps Script steps one at a time, and check that it opens."
