@@ -27,7 +27,7 @@ Offer the files one at a time so the user can copy each in full. Paste them unch
 1. In the function menu above the code, choose **checkSetup**, then **Run** [실행].
 2. **Review permissions** [권한 검토] → choose the account → on "Google hasn't verified this app" [Google에서 확인하지 않은 앱] choose **Advanced** [고급] → **Go to Drawer (unsafe)** [(으)로 이동] → **Allow** [허용].
    - The warning is normal for a script the user made. Google lists two permissions: see, edit, create, and delete Drive files (the drawer uses it only to move drawer files to the trash and back and to save `_memos.json`), and connect to an external service (used to read Drive in parallel).
-3. The execution log ends with "Authorized. No drawer folder yet…".
+3. The execution log ends with "Authorized. No drawer folder yet…". The run that asked for permission may stop without that line; choose **Run** once more.
 
 ## 4. Deploy as a web app
 
