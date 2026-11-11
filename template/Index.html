@@ -411,17 +411,17 @@ const STRINGS = {
 let LANG = /^ko\b/i.test(navigator.language || '') ? 'ko' : 'en';
 function tFor(lang, key, vars) {
   const table = STRINGS[lang] || STRINGS.en;
-  const v = table[key] != null ? table[key] : STRINGS.en[key];
-  if (typeof v !== 'string') return v;
-  return v.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] != null ? String(vars[k]) : m));
+  const value = table[key] != null ? table[key] : STRINGS.en[key];
+  if (typeof value !== 'string') return value;
+  return value.replace(/\{(\w+)\}/g, (whole, name) => (vars && vars[name] != null ? String(vars[name]) : whole));
 }
-const t = (key, vars) => tFor(LANG, key, vars);
+const msg = (key, vars) => tFor(LANG, key, vars);
 /** key1 when there is exactly one, key otherwise ("1 file", "2 files"). */
-const tn = (key, n, vars) => t(Number(n) === 1 ? key + '1' : key, Object.assign({ n: n }, vars || {}));
-const monthTitle = (y, m) => (LANG === 'ko' ? y + '년 ' + m + '월'
-  : new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long' }).format(new Date(y, m - 1, 1)));
-const dayName = (y, m, d) => (LANG === 'ko' ? m + '월 ' + d + '일'
-  : new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(y, m - 1, d)));
+const tn = (key, count, vars) => msg(Number(count) === 1 ? key + '1' : key, Object.assign({ n: count }, vars || {}));
+const monthTitle = (year, month) => (LANG === 'ko' ? year + '년 ' + month + '월'
+  : new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long' }).format(new Date(year, month - 1, 1)));
+const dayName = (year, month, day) => (LANG === 'ko' ? month + '월 ' + day + '일'
+  : new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(year, month - 1, day)));
 
 /* ---------- small helpers shared by the drawer, the setup screen and the memos ---------- */
 const el = (tag, cls, text) => {
@@ -430,11 +430,11 @@ const el = (tag, cls, text) => {
   if (text != null) node.textContent = text;
   return node;
 };
-const button = (cls, text) => { const b = el('button', cls, text); b.type = 'button'; return b; };
+const button = (cls, text) => { const btn = el('button', cls, text); btn.type = 'button'; return btn; };
 const link = (url, label) => {
-  const a = el('a', null, label);
-  a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-  return a;
+  const anchor = el('a', null, label);
+  anchor.href = url; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+  return anchor;
 };
 const store = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
@@ -448,27 +448,27 @@ function call(fn, arg) {
 const errorText = err => (err && err.message ? err.message : String(err));
 
 /** Words that are in the page from the start: set again whenever the language is known or changes. */
-function applyStatic(d) {
+function applyStatic(drawer) {
   document.documentElement.lang = LANG;
-  document.getElementById('brand-title').textContent = (d && d.title) || (LANG === 'ko' ? '서랍' : 'Drawer');
-  document.getElementById('brand-icon').setAttribute('aria-label', t('apricot'));
-  const q = document.getElementById('q');
-  q.placeholder = t('search');
-  q.setAttribute('aria-label', t('searchAria'));
-  document.getElementById('q-clear').setAttribute('aria-label', t('clearSearch'));
-  document.getElementById('only-me').textContent = t('onlyMe');
-  document.getElementById('memo-add-text').textContent = t('addMemo');
-  document.getElementById('nav').setAttribute('aria-label', t('navAria'));
-  document.getElementById('cal').setAttribute('aria-label', t('calAria'));
-  document.getElementById('memo-layer').setAttribute('aria-label', t('memos'));
-  document.getElementById('viewer').setAttribute('aria-label', t('viewer'));
-  document.getElementById('viewer-close').textContent = t('close');
+  document.getElementById('brand-title').textContent = (drawer && drawer.title) || (LANG === 'ko' ? '서랍' : 'Drawer');
+  document.getElementById('brand-icon').setAttribute('aria-label', msg('apricot'));
+  const searchBox = document.getElementById('q');
+  searchBox.placeholder = msg('search');
+  searchBox.setAttribute('aria-label', msg('searchAria'));
+  document.getElementById('q-clear').setAttribute('aria-label', msg('clearSearch'));
+  document.getElementById('only-me').textContent = msg('onlyMe');
+  document.getElementById('memo-add-text').textContent = msg('addMemo');
+  document.getElementById('nav').setAttribute('aria-label', msg('navAria'));
+  document.getElementById('cal').setAttribute('aria-label', msg('calAria'));
+  document.getElementById('memo-layer').setAttribute('aria-label', msg('memos'));
+  document.getElementById('viewer').setAttribute('aria-label', msg('viewer'));
+  document.getElementById('viewer-close').textContent = msg('close');
 }
 
 /* ---------- setup screen: the first visit, and Settings later ---------- */
-function renderSetupForm(container, s, opts) {
+function renderSetupForm(container, prefs, opts) {
   opts = opts || {};
-  let lang = s.lang === 'ko' ? 'ko' : 'en';
+  let lang = prefs.lang === 'ko' ? 'ko' : 'en';
   const tl = (key, vars) => tFor(lang, key, vars);
   let tz = '';
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
@@ -485,24 +485,24 @@ function renderSetupForm(container, s, opts) {
   };
   const folder = el('input', 'c-input');
   folder.inputMode = 'url'; folder.spellcheck = false; folder.autocapitalize = 'off'; folder.autocomplete = 'off';
-  folder.value = s.folderId ? 'https://drive.google.com/drive/folders/' + s.folderId : '';
+  folder.value = prefs.folderId ? 'https://drive.google.com/drive/folders/' + prefs.folderId : '';
   const folderHint = el('span', 'c-hint');
   const title = el('input', 'c-input');
-  title.maxLength = 60; title.value = s.title || '';
+  title.maxLength = 60; title.value = prefs.title || '';
   const owner = el('input', 'c-input');
-  owner.maxLength = 80; owner.value = s.owner || '';
+  owner.maxLength = 80; owner.value = prefs.owner || '';
   const ownerHint = el('span', 'c-hint');
   const folderField = field(folder, folderHint), titleField = field(title), ownerField = field(owner, ownerHint);
   const langBox = el('div', 'c-field');
   langBox.setAttribute('role', 'radiogroup');
   const langLabel = el('span', 'c-label');
   const seg = el('span', 'seg');
-  const chips = ['en', 'ko'].map(l => {
-    const c = button('chip', STRINGS.en.langNames[l]);
-    c.setAttribute('role', 'radio');
-    c.addEventListener('click', () => { lang = l; paint(); });
-    c.dataset.lang = l;
-    return c;
+  const chips = ['en', 'ko'].map(code => {
+    const chip = button('chip', STRINGS.en.langNames[code]);
+    chip.setAttribute('role', 'radio');
+    chip.addEventListener('click', () => { lang = code; paint(); });
+    chip.dataset.lang = code;
+    return chip;
   });
   seg.append(...chips);
   langBox.append(langLabel, seg);
@@ -521,19 +521,19 @@ function renderSetupForm(container, s, opts) {
     heading.textContent = opts.settings ? tl('settingsTitle') : tl('setupTitle');
     intro.textContent = tl('setupIntro');
     folderField.label.textContent = tl('folder');
-    folderHint.textContent = (s.folderName ? tl('folderNow', { name: s.folderName }) + ' · ' : '') + tl('folderHint');
+    folderHint.textContent = (prefs.folderName ? tl('folderNow', { name: prefs.folderName }) + ' · ' : '') + tl('folderHint');
     titleField.label.textContent = tl('pageTitle');
     title.placeholder = lang === 'ko' ? '서랍' : 'Drawer';
     ownerField.label.textContent = tl('ownerName');
     ownerHint.textContent = tl('ownerHint');
     langLabel.textContent = tl('language');
-    chips.forEach(c => { const on = c.dataset.lang === lang; c.setAttribute('aria-checked', String(on)); c.tabIndex = on ? 0 : -1; });
+    chips.forEach(chip => { const on = chip.dataset.lang === lang; chip.setAttribute('aria-checked', String(on)); chip.tabIndex = on ? 0 : -1; });
     tzNote.textContent = tz ? tl('timeZone', { tz }) : '';
     save.textContent = tl('saveOpen');
     if (cancel) cancel.textContent = tl('cancel');
   }
-  form.addEventListener('submit', e => {
-    e.preventDefault();
+  form.addEventListener('submit', event => {
+    event.preventDefault();
     error.hidden = true;
     save.disabled = true;
     save.textContent = tl('checking');
@@ -551,7 +551,7 @@ function renderSetupForm(container, s, opts) {
   form.append(heading, intro, folderField.box, titleField.box, ownerField.box, langBox, tzNote, error, actions);
   paint();
   container.append(form);
-  if (!s.folderId) folder.focus({ preventScroll: true });
+  if (!prefs.folderId) folder.focus({ preventScroll: true });
 }
 
 /* ---------- the drawer ---------- */
@@ -559,23 +559,23 @@ function start(data) {
   const nav = document.getElementById('nav');
   const reader = document.getElementById('reader');
   const cal = document.getElementById('cal');
-  const q = document.getElementById('q');
+  const searchBox = document.getElementById('q');
   const qClear = document.getElementById('q-clear');
   const CHEVRON = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const LOCK = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
-  const norm = s => String(s || '').normalize('NFC').toLowerCase();
-  const pad = n => String(n).padStart(2, '0');
+  const norm = value => String(value || '').normalize('NFC').toLowerCase();
+  const pad = num => String(num).padStart(2, '0');
   const now = new Date();
   const TODAY = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
 
-  const flatten = d => {
-    const all = d.groups.flatMap(g => g.items.map(i => ({ ...i, group: g.key })));
-    for (const i of all) {
-      i.hay = norm([i.title, i.sub, i.author, i.publisher, i.type, i.status, i.note, i.rights, i.source && i.source.label, i.body,
-        i.image && i.image.alt, i.account, i.project, i.service, i.category, i.surveyMemo, i.overlaps, i.relatedTitle, i.fileName,
-        ...(i.aiOutputs || []), ...(i.assets || []).map(a => a.title + ' ' + a.alt),
-        ...Object.values(i.byLang || {}).flatMap(v => [v.title, v.type, ...v.tags]),
-        ...(i.tags || []), ...Object.values(i.bodies || {})].filter(Boolean).join('\n'));
+  const flatten = drawer => {
+    const all = drawer.groups.flatMap(group => group.items.map(item => ({ ...item, group: group.key })));
+    for (const item of all) {
+      item.hay = norm([item.title, item.sub, item.author, item.publisher, item.type, item.status, item.note, item.rights, item.source && item.source.label, item.body,
+        item.image && item.image.alt, item.account, item.project, item.service, item.category, item.surveyMemo, item.overlaps, item.relatedTitle, item.fileName,
+        ...(item.aiOutputs || []), ...(item.assets || []).map(asset => asset.title + ' ' + asset.alt),
+        ...Object.values(item.byLang || {}).flatMap(version => [version.title, version.type, ...version.tags]),
+        ...(item.tags || []), ...Object.values(item.bodies || {})].filter(Boolean).join('\n'));
     }
     return all;
   };
@@ -586,8 +586,8 @@ function start(data) {
   const buttons = new Map();
 
   const terms = () => norm(query).split(/\s+/).filter(Boolean);
-  const visible = () => { const tt = terms(); return tt.length ? items.filter(i => tt.every(w => i.hay.includes(w))) : items; };
-  const dated = i => (i.kind === 'text' || i.kind === 'chat') && /^\d{4}-\d{2}/.test(i.date || '');
+  const visible = () => { const tt = terms(); return tt.length ? items.filter(item => tt.every(word => item.hay.includes(word))) : items; };
+  const dated = item => (item.kind === 'text' || item.kind === 'chat') && /^\d{4}-\d{2}/.test(item.date || '');
   const isMobile = () => matchMedia('(max-width: 720px)').matches;
   const scrollToReader = () => {
     if (!isMobile()) return;
@@ -599,14 +599,14 @@ function start(data) {
     const tt = terms();
     if (!tt.length) { frag.append(text); return frag; }
     const lower = norm(text);
-    let i = 0;
-    while (i < text.length) {
+    let pos = 0;
+    while (pos < text.length) {
       let hit = null;
-      for (const w of tt) { const at = lower.indexOf(w, i); if (at !== -1 && (!hit || at < hit[0])) hit = [at, w.length]; }
-      if (!hit) { frag.append(text.slice(i)); break; }
-      if (hit[0] > i) frag.append(text.slice(i, hit[0]));
+      for (const word of tt) { const at = lower.indexOf(word, pos); if (at !== -1 && (!hit || at < hit[0])) hit = [at, word.length]; }
+      if (!hit) { frag.append(text.slice(pos)); break; }
+      if (hit[0] > pos) frag.append(text.slice(pos, hit[0]));
       frag.append(el('mark', null, text.slice(hit[0], hit[0] + hit[1])));
-      i = hit[0] + hit[1];
+      pos = hit[0] + hit[1];
     }
     return frag;
   }
@@ -619,11 +619,11 @@ function start(data) {
     const searching = terms().length > 0;
     if (searching) {
       const found = el('div', 'found');
-      found.append(el('span', null, t('found', { n: vis.length })));
+      found.append(el('span', null, msg('found', { n: vis.length })));
       nav.append(found);
     }
     for (const group of data.groups) {
-      const groupItems = vis.filter(i => i.group === group.key);
+      const groupItems = vis.filter(item => item.group === group.key);
       if (!groupItems.length) continue;
       const open = searching || expanded.has(group.key);
       const head = button('group-head');
@@ -638,56 +638,56 @@ function start(data) {
       nav.append(head);
       if (!open) continue;
       for (const item of groupItems) {
-        const b = button('item');
+        const btn = button('item');
         const tt = el('span', 't'); tt.append(highlighted(item.title));
-        b.append(tt, el('span', 's', item.sub));
-        b.setAttribute('aria-current', String(item.id === current));
-        b.addEventListener('click', () => { show(item.id); scrollToReader(); });
-        buttons.set(item.id, b);
-        nav.append(b);
+        btn.append(tt, el('span', 's', item.sub));
+        btn.setAttribute('aria-current', String(item.id === current));
+        btn.addEventListener('click', () => { show(item.id); scrollToReader(); });
+        buttons.set(item.id, btn);
+        nav.append(btn);
       }
     }
-    if (!vis.length) nav.append(el('p', 'empty', t('nothing')));
+    if (!vis.length) nav.append(el('p', 'empty', msg('nothing')));
   }
 
   /* ---------- calendar ---------- */
   function renderCal() {
     cal.replaceChildren();
     const onCal = visible().filter(dated);
-    const months = [...new Set(onCal.map(i => i.date.slice(0, 7)))].sort();
+    const months = [...new Set(onCal.map(item => item.date.slice(0, 7)))].sort();
     if (!calYm) calYm = months[months.length - 1] || TODAY.slice(0, 7);
-    const [y, m] = calYm.split('-').map(Number);
-    const prev = months.filter(x => x < calYm).pop();
-    const next = months.find(x => x > calYm);
+    const [year, month] = calYm.split('-').map(Number);
+    const prev = months.filter(ym => ym < calYm).pop();
+    const next = months.find(ym => ym > calYm);
 
     const head = el('div', 'cal-head');
-    head.append(el('p', 'cal-title', monthTitle(y, m)));
+    head.append(el('p', 'cal-title', monthTitle(year, month)));
     const arrows = el('div', 'cal-arrows');
     const mk = (label, target, glyph) => {
-      const b = button('cal-arrow');
-      b.setAttribute('aria-label', label);
-      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="' + glyph + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      b.disabled = !target;
-      b.addEventListener('click', () => { calYm = target; calSel = null; renderCal(); });
-      return b;
+      const btn = button('cal-arrow');
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="' + glyph + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      btn.disabled = !target;
+      btn.addEventListener('click', () => { calYm = target; calSel = null; renderCal(); });
+      return btn;
     };
-    arrows.append(mk(t('prevMonth'), prev, 'M7.5 2.5L4 6l3.5 3.5'), mk(t('nextMonth'), next, 'M4.5 2.5L8 6l-3.5 3.5'));
+    arrows.append(mk(msg('prevMonth'), prev, 'M7.5 2.5L4 6l3.5 3.5'), mk(msg('nextMonth'), next, 'M4.5 2.5L8 6l-3.5 3.5'));
     head.append(arrows);
     cal.append(head);
 
     const grid = el('div', 'cal-grid');
-    for (const d of t('weekdays')) grid.append(el('span', 'cal-dow', d));
-    const first = new Date(y, m - 1, 1).getDay();
-    const days = new Date(y, m, 0).getDate();
-    for (let i = 0; i < first; i++) grid.append(el('span', 'cal-day'));
-    for (let d = 1; d <= days; d++) {
-      const date = calYm + '-' + pad(d);
-      const entries = onCal.filter(i => i.date === date);
-      const cell = entries.length ? button('cal-day', String(d)) : el('span', 'cal-day', String(d));
+    for (const dayLabel of msg('weekdays')) grid.append(el('span', 'cal-dow', dayLabel));
+    const first = new Date(year, month - 1, 1).getDay();
+    const days = new Date(year, month, 0).getDate();
+    for (let blank = 0; blank < first; blank++) grid.append(el('span', 'cal-day'));
+    for (let day = 1; day <= days; day++) {
+      const date = calYm + '-' + pad(day);
+      const entries = onCal.filter(item => item.date === date);
+      const cell = entries.length ? button('cal-day', String(day)) : el('span', 'cal-day', String(day));
       if (date === calSel) cell.classList.add('sel');
       if (date === TODAY) cell.classList.add('today');
       if (entries.length) {
-        cell.setAttribute('aria-label', tn('dayAria', entries.length, { date: dayName(y, m, d) }));
+        cell.setAttribute('aria-label', tn('dayAria', entries.length, { date: dayName(year, month, day) }));
         cell.addEventListener('click', () => {
           calSel = date;
           if (entries.length === 1) { show(entries[0].id); scrollToReader(); } else renderCal();
@@ -697,32 +697,32 @@ function start(data) {
     }
     cal.append(grid);
 
-    const undated = onCal.filter(i => i.date === calYm);
+    const undated = onCal.filter(item => item.date === calYm);
     if (undated.length) {
-      const u = button('cal-undated', t('undated', { titles: undated.map(i => i.title).join(', ') }));
-      u.addEventListener('click', () => {
+      const undatedBtn = button('cal-undated', msg('undated', { titles: undated.map(item => item.title).join(', ') }));
+      undatedBtn.addEventListener('click', () => {
         calSel = 'u-' + calYm;
         if (undated.length === 1) { show(undated[0].id); scrollToReader(); } else renderCal();
       });
-      cal.append(u);
+      cal.append(undatedBtn);
     }
 
-    const selected = calSel && onCal.filter(i => i.date === (calSel.startsWith('u-') ? calSel.slice(2) : calSel));
+    const selected = calSel && onCal.filter(item => item.date === (calSel.startsWith('u-') ? calSel.slice(2) : calSel));
     if (selected && selected.length) {
       const entryList = el('div', 'cal-list');
       for (const item of selected) {
-        const b = button('cal-entry');
-        b.append(item.title, el('small', null, item.sub));
-        b.setAttribute('aria-current', String(item.id === current));
-        b.addEventListener('click', () => { show(item.id); scrollToReader(); });
-        entryList.append(b);
+        const btn = button('cal-entry');
+        btn.append(item.title, el('small', null, item.sub));
+        btn.setAttribute('aria-current', String(item.id === current));
+        btn.addEventListener('click', () => { show(item.id); scrollToReader(); });
+        entryList.append(btn);
       }
       cal.append(entryList);
     } else if (!months.length) {
-      cal.append(el('p', 'cal-none', terms().length ? t('noDatedFound') : t('noDated')));
+      cal.append(el('p', 'cal-none', terms().length ? msg('noDatedFound') : msg('noDated')));
     }
-    const built = el('p', 'built', t('updated', { when: data.built }) + ' · ');
-    const settings = button('link-btn', t('settings'));
+    const built = el('p', 'built', msg('updated', { when: data.built }) + ' · ');
+    const settings = button('link-btn', msg('settings'));
     settings.addEventListener('click', openSettings);
     built.append(settings);
     cal.append(built);
@@ -739,23 +739,23 @@ function start(data) {
   function renderText(item, lang) {
     const langs = item.langs;
     lang = langs.includes(lang) ? lang : langs[0];
-    const v = (item.byLang && item.byLang[lang]) || {};
+    const version = (item.byLang && item.byLang[lang]) || {};
     let seg = null;
     if (langs.length > 1) {
       seg = el('div', 'seg');
       seg.setAttribute('role', 'group');
-      seg.setAttribute('aria-label', t('language'));
-      for (const l of langs) {
-        const chip = button('chip', t('langNames')[l] || l.toUpperCase());
-        chip.setAttribute('aria-pressed', String(l === lang));
-        chip.addEventListener('click', () => { store.set('drawer-lang-' + item.id, l); show(item.id); });
+      seg.setAttribute('aria-label', msg('language'));
+      for (const code of langs) {
+        const chip = button('chip', msg('langNames')[code] || code.toUpperCase());
+        chip.setAttribute('aria-pressed', String(code === lang));
+        chip.addEventListener('click', () => { store.set('drawer-lang-' + item.id, code); show(item.id); });
         seg.append(chip);
       }
     }
-    header(item, [v.status || v.type || item.status || item.type, item.dateLabel].filter(Boolean).join(' · '), seg, v.title);
+    header(item, [version.status || version.type || item.status || item.type, item.dateLabel].filter(Boolean).join(' · '), seg, version.title);
     const byline = el('p', 'byline');
     if (item.own) {
-      byline.append(data.owner || t('me'));
+      byline.append(data.owner || msg('me'));
       if (!item.service && item.source.label) {
         byline.append(' · ');
         byline.append(item.source.url ? link(item.source.url, item.source.label + ' ↗') : item.source.label);
@@ -774,13 +774,13 @@ function start(data) {
     if (item.rights) {
       const pill = el('span', 'pill');
       pill.innerHTML = LOCK;
-      pill.append(t('notForSharing'));
+      pill.append(msg('notForSharing'));
       foot.append(pill, el('span', null, item.rights));
     } else {
-      foot.append(el('span', null, item.own ? t('minePrivate') : t('private')));
+      foot.append(el('span', null, item.own ? msg('minePrivate') : msg('private')));
     }
     if (item.note) foot.append(el('span', null, item.note));
-    const tags = v.tags && v.tags.length ? v.tags : item.tags;
+    const tags = version.tags && version.tags.length ? version.tags : item.tags;
     if (tags.length) foot.append(el('span', null, tags.join(' · ')));
     reader.append(foot);
   }
@@ -789,10 +789,10 @@ function start(data) {
   function inline(text, assets) {
     const frag = document.createDocumentFragment();
     const re = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/g;
-    let last = 0, m;
-    while ((m = re.exec(text))) {
-      if (m.index > last) frag.append(text.slice(last, m.index));
-      const tok = m[0];
+    let last = 0;
+    for (const found of text.matchAll(re)) {
+      if (found.index > last) frag.append(text.slice(last, found.index));
+      const tok = found[0];
       if (tok[0] === '`') frag.append(el('code', null, tok.slice(1, -1)));
       else if (tok[0] === '*') frag.append(el('strong', null, tok.slice(2, -2)));
       else {
@@ -803,58 +803,58 @@ function start(data) {
         else if (/^https?:\/\//.test(parts[2])) frag.append(link(parts[2], parts[1]));
         else frag.append(parts[1]);
       }
-      last = m.index + tok.length;
+      last = found.index + tok.length;
     }
     if (last < text.length) frag.append(text.slice(last));
     return frag;
   }
   function markdown(src, title, assets) {
-    const assetByName = new Map((assets || []).map(a => [a.file, a]));
-    const inl = s => inline(s, assetByName);
+    const assetByName = new Map((assets || []).map(asset => [asset.file, asset]));
+    const inl = piece => inline(piece, assetByName);
     const root = el('div', 'md');
     const lines = src.split('\n');
-    const isBlock = l => /^(#{1,4}\s|\s*\||\s*[-*]\s|\s*(~{3,}|`{3,})|\s*-{3,}\s*$|\s*!?\[[^\]]*\]\([^)\s]+\)\s*$)/.test(l);
-    const cells = row => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
-    let i = 0;
-    while (i < lines.length) {
-      const line = lines[i];
-      if (!line.trim()) { i++; continue; }
+    const isBlock = line => /^(#{1,4}\s|\s*\||\s*[-*]\s|\s*(~{3,}|`{3,})|\s*-{3,}\s*$|\s*!?\[[^\]]*\]\([^)\s]+\)\s*$)/.test(line);
+    const cells = row => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+    let pos = 0;
+    while (pos < lines.length) {
+      const line = lines[pos];
+      if (!line.trim()) { pos++; continue; }
       // Verbatim fence (~~~text … ~~~): shown exactly as written.
       const fence = line.match(/^\s*(~{3,}|`{3,})/);
       if (fence) {
         const mark = fence[1];
         const close = new RegExp('^\\s*' + (mark[0] === '~' ? '~' : '`') + '{' + mark.length + ',}\\s*$');
         const buf = [];
-        i++;
-        while (i < lines.length && !close.test(lines[i])) buf.push(lines[i++]);
-        i++;
+        pos++;
+        while (pos < lines.length && !close.test(lines[pos])) buf.push(lines[pos++]);
+        pos++;
         root.append(el('div', 'verbatim', buf.join('\n')));
         continue;
       }
-      if (/^\s*-{3,}\s*$/.test(line)) { root.append(el('hr')); i++; continue; }
-      const h = line.match(/^(#{1,4})\s+(.*)$/);
-      if (h) {
-        i++;
-        if (h[1].length === 1 && h[2].trim() === title) continue; // the first heading repeats the title
-        const node = el('h' + (h[1].length + 1));
-        node.append(inl(h[2].trim()));
+      if (/^\s*-{3,}\s*$/.test(line)) { root.append(el('hr')); pos++; continue; }
+      const heading = line.match(/^(#{1,4})\s+(.*)$/);
+      if (heading) {
+        pos++;
+        if (heading[1].length === 1 && heading[2].trim() === title) continue; // the first heading repeats the title
+        const node = el('h' + (heading[1].length + 1));
+        node.append(inl(heading[2].trim()));
         root.append(node);
         continue;
       }
       if (/^\s*\|/.test(line)) {
         const rows = [];
-        while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+        while (pos < lines.length && /^\s*\|/.test(lines[pos])) rows.push(lines[pos++]);
         const table = el('table');
         const head = cells(rows[0]);
         const thead = el('thead'), tr = el('tr');
-        head.forEach(c => { const th = el('th'); th.append(inl(c)); tr.append(th); });
+        head.forEach(cell => { const th = el('th'); th.append(inl(cell)); tr.append(th); });
         thead.append(tr); table.append(thead);
         const tbody = el('tbody');
         for (const row of rows.slice(1)) {
           if (/^[\s|:-]+$/.test(row)) continue;
-          const r = el('tr');
-          cells(row).forEach(c => { const td = el('td'); if (/^[✓✔○●]$/.test(c)) td.className = 'c'; td.append(inl(c)); r.append(td); });
-          tbody.append(r);
+          const rowEl = el('tr');
+          cells(row).forEach(cell => { const td = el('td'); if (/^[✓✔○●]$/.test(cell)) td.className = 'c'; td.append(inl(cell)); rowEl.append(td); });
+          tbody.append(rowEl);
         }
         table.append(tbody);
         const wrap = el('div', 'table-wrap'); wrap.append(table);
@@ -863,8 +863,8 @@ function start(data) {
       }
       if (/^\s*[-*]\s+/.test(line)) {
         const ul = el('ul');
-        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-          const li = el('li'); li.append(inl(lines[i].replace(/^\s*[-*]\s+/, '').trim())); ul.append(li); i++;
+        while (pos < lines.length && /^\s*[-*]\s+/.test(lines[pos])) {
+          const li = el('li'); li.append(inl(lines[pos].replace(/^\s*[-*]\s+/, '').trim())); ul.append(li); pos++;
         }
         root.append(ul);
         continue;
@@ -872,29 +872,29 @@ function start(data) {
       // A file line: ![alt](file) shows the picture, [name](file) links to Drive. Only file names from the same folder are used.
       const media = line.match(/^\s*(!?)\[([^\]]*)\]\(([^)\s]+)\)\s*$/);
       if (media) {
-        i++;
+        pos++;
         const asset = assetByName.get(media[3]);
         if (asset && asset.image && asset.id) { root.append(figure({ id: asset.id, alt: asset.alt || media[2] })); continue; }
         const row = el('p', 'file-link');
         if (asset && asset.url) {
-          row.append(link(asset.url, t('openInDrive', { name: media[2] || asset.title })));
+          row.append(link(asset.url, msg('openInDrive', { name: media[2] || asset.title })));
           if (asset.sizeKb) row.append(el('small', null, ' ' + asset.sizeKb + 'KB'));
         } else if (/^https?:\/\//.test(media[3]) && !media[1]) {
           row.append(link(media[3], media[2] + ' ↗'));
         } else {
-          row.append(el('span', 'missing', t('notInFolder', { name: media[2] || media[3], file: media[3] })));
+          row.append(el('span', 'missing', msg('notInFolder', { name: media[2] || media[3], file: media[3] })));
         }
         root.append(row);
         continue;
       }
-      const p = el('p');
+      const para = el('p');
       let firstLine = true;
-      while (i < lines.length && lines[i].trim() && !isBlock(lines[i])) {
-        if (!firstLine) p.append(el('br'));
-        p.append(inl(lines[i].trim()));
-        firstLine = false; i++;
+      while (pos < lines.length && lines[pos].trim() && !isBlock(lines[pos])) {
+        if (!firstLine) para.append(el('br'));
+        para.append(inl(lines[pos].trim()));
+        firstLine = false; pos++;
       }
-      root.append(p);
+      root.append(para);
     }
     return root;
   }
@@ -903,7 +903,7 @@ function start(data) {
   const viewer = document.getElementById('viewer');
   const viewerImg = document.getElementById('viewer-img');
   document.getElementById('viewer-close').addEventListener('click', () => viewer.close());
-  viewer.addEventListener('click', e => { if (e.target === viewer) viewer.close(); });
+  viewer.addEventListener('click', event => { if (event.target === viewer) viewer.close(); });
   // A photo loads from Drive when its item opens; once loaded it is reused while the page is open.
   const imageCache = new Map();
   function loadImage(id) {
@@ -912,65 +912,65 @@ function start(data) {
   }
   function figure(image) {
     const fig = el('figure', 'figure');
-    const b = button('figure-btn');
-    b.setAttribute('aria-label', t('viewLarger', { alt: image.alt }));
-    b.disabled = true;
+    const btn = button('figure-btn');
+    btn.setAttribute('aria-label', msg('viewLarger', { alt: image.alt }));
+    btn.disabled = true;
     const img = el('img');
     img.alt = image.alt; img.decoding = 'async';
-    const caption = el('figcaption', null, t('loadingPhoto'));
-    b.append(img);
+    const caption = el('figcaption', null, msg('loadingPhoto'));
+    btn.append(img);
     loadImage(image.id).then(src => {
       img.src = src;
-      b.disabled = false;
-      caption.textContent = t('enlarge', { alt: image.alt });
+      btn.disabled = false;
+      caption.textContent = msg('enlarge', { alt: image.alt });
     }, () => {
       imageCache.delete(image.id);
-      b.hidden = true;
-      caption.textContent = t('photoFailed', { alt: image.alt });
+      btn.hidden = true;
+      caption.textContent = msg('photoFailed', { alt: image.alt });
     });
-    b.addEventListener('click', () => {
+    btn.addEventListener('click', () => {
       viewerImg.src = img.src; viewerImg.alt = image.alt;
       document.getElementById('viewer-caption').textContent = image.alt;
       try { viewer.showModal(); viewer.scrollTop = 0; } catch {}
     });
-    fig.append(b, caption);
+    fig.append(btn, caption);
     return fig;
   }
 
   function renderChat(item) {
     const when = item.dateLabel + (item.dateEndLabel && item.dateEndLabel !== item.dateLabel ? ' ~ ' + item.dateEndLabel : '');
-    header(item, [t('chat', { service: item.service }), item.category, when].filter(Boolean).join(' · '));
-    const who = [[item.account, item.chatNo && '#' + item.chatNo].filter(Boolean).join(' '), item.project && t('project', { name: item.project })]
+    header(item, [msg('chat', { service: item.service }), item.category, when].filter(Boolean).join(' · '));
+    const who = [[item.account, item.chatNo && '#' + item.chatNo].filter(Boolean).join(' '), item.project && msg('project', { name: item.project })]
       .filter(Boolean).join(' · ');
     if (who || item.chatUrl) {
       const byline = el('p', 'byline');
       if (who) byline.append(who);
-      if (item.chatUrl) { if (who) byline.append(' · '); byline.append(link(item.chatUrl, t('openIn', { service: item.service }))); }
+      if (item.chatUrl) { if (who) byline.append(' · '); byline.append(link(item.chatUrl, msg('openIn', { service: item.service }))); }
       reader.append(byline);
     }
     if (item.authorship && /check|확인/i.test(item.authorship)) {
       const flag = el('p', 'flag');
-      flag.append(el('span', 'pill', t('authorship', { value: item.authorship })));
+      flag.append(el('span', 'pill', msg('authorship', { value: item.authorship })));
       if (item.surveyMemo) flag.append(el('span', null, item.surveyMemo));
       reader.append(flag);
     }
     reader.append(markdown(item.body, item.title, item.assets));
     const foot = el('div', 'foot');
-    const lost = item.assets.filter(a => !a.found).length;
+    const lost = item.assets.filter(asset => !asset.found).length;
     [
       item.userTurns && tn('myTurns', item.userTurns),
       item.assets.length && (lost ? tn('filesMissing', item.assets.length, { m: lost }) : tn('files', item.assets.length)),
-      item.missing && t('missing', { text: item.missing }),
-      item.attachments.length && t('attachments', { text: item.attachments.join(', ') }),
-      item.aiOutputs.length && t('aiOutputs', { text: item.aiOutputs.join(', ') }),
-      item.codeOutputs.length && t('codeOutputs', { text: item.codeOutputs.join(', ') }),
-      item.overlaps && t('overlaps', { text: item.overlaps }),
+      item.missing && msg('missing', { text: item.missing }),
+      item.attachments.length && msg('attachments', { text: item.attachments.join(', ') }),
+      item.aiOutputs.length && msg('aiOutputs', { text: item.aiOutputs.join(', ') }),
+      item.codeOutputs.length && msg('codeOutputs', { text: item.codeOutputs.join(', ') }),
+      item.overlaps && msg('overlaps', { text: item.overlaps }),
       item.tags.length && item.tags.join(' · '),
-    ].filter(Boolean).forEach(f => foot.append(el('span', null, f)));
+    ].filter(Boolean).forEach(fact => foot.append(el('span', null, fact)));
     for (const name of item.related) {
-      const target = items.find(i => i.kind === 'chat' && (i.file === name || i.file === name + '.md'));
-      if (!target) { foot.append(el('span', null, t('related', { title: name }))); continue; }
-      const chip = button('chip', t('related', { title: target.title }));
+      const target = items.find(other => other.kind === 'chat' && (other.file === name || other.file === name + '.md'));
+      if (!target) { foot.append(el('span', null, msg('related', { title: name }))); continue; }
+      const chip = button('chip', msg('related', { title: target.title }));
       chip.addEventListener('click', () => { show(target.id); scrollToReader(); });
       foot.append(chip);
     }
@@ -980,29 +980,29 @@ function start(data) {
   // A related conversation: a chip when it is in the drawer, otherwise its kept title and where it went.
   function relatedNodes(item) {
     if (item.related) {
-      const chat = items.find(i => i.kind === 'chat' && (i.file === item.related || i.file === item.related + '.md') && (!item.service || i.service === item.service));
+      const chat = items.find(other => other.kind === 'chat' && (other.file === item.related || other.file === item.related + '.md') && (!item.service || other.service === item.service));
       if (chat) {
-        const chip = button('chip', t('related', { title: chat.title }));
+        const chip = button('chip', msg('related', { title: chat.title }));
         chip.addEventListener('click', () => { show(chat.id); scrollToReader(); });
         return [chip];
       }
-      const inTrash = items.some(i => i.kind === 'trash' && i.fileName === item.related);
-      return [t('relatedChat', { title: item.relatedTitle || item.related, where: t(inTrash ? 'inTrash' : 'notInDrawer') })];
+      const inTrash = items.some(other => other.kind === 'trash' && other.fileName === item.related);
+      return [msg('relatedChat', { title: item.relatedTitle || item.related, where: msg(inTrash ? 'inTrash' : 'notInDrawer') })];
     }
-    return item.service ? [t('fromChat', { service: item.service })] : [];
+    return item.service ? [msg('fromChat', { service: item.service })] : [];
   }
 
   function show(id) {
-    const item = items.find(i => i.id === id) || items.find(i => i.kind !== 'trash') || items[0];
+    const item = items.find(entry => entry.id === id) || items.find(entry => entry.kind !== 'trash') || items[0];
     reader.replaceChildren();
     if (!item) {
-      reader.append(el('p', 'empty', t('empty')));
+      reader.append(el('p', 'empty', msg('empty')));
       renderCal();
       return;
     }
     current = item.id;
     store.set('drawer-selected', item.id);
-    for (const [key, b] of buttons) b.setAttribute('aria-current', String(key === item.id));
+    for (const [key, btn] of buttons) btn.setAttribute('aria-current', String(key === item.id));
     if (item.kind === 'text') renderText(item, store.get('drawer-lang-' + item.id) || LANG);
     else if (item.kind === 'chat') renderChat(item);
     else renderTrash(item);
@@ -1025,43 +1025,43 @@ function start(data) {
     clearTimeout(toastTimer);
     toast.replaceChildren(el('span', null, message));
     if (action) {
-      const b = button('chip', action.label);
-      b.addEventListener('click', () => { toast.hidden = true; action.run(); });
-      toast.append(b);
+      const btn = button('chip', action.label);
+      btn.addEventListener('click', () => { toast.hidden = true; action.run(); });
+      toast.append(btn);
     }
     toast.hidden = false;
     toastTimer = setTimeout(() => { toast.hidden = true; }, action ? 10000 : 4000);
   }
   function reload(selectId) {
-    return call('getDrawer').then(d => {
-      data = d;
-      LANG = d.lang === 'ko' ? 'ko' : 'en';
-      applyStatic(d);
-      items = flatten(d);
+    return call('getDrawer').then(drawer => {
+      data = drawer;
+      LANG = drawer.lang === 'ko' ? 'ko' : 'en';
+      applyStatic(drawer);
+      items = flatten(drawer);
       renderNav();
-      show(selectId && items.some(i => i.id === selectId) ? selectId : (items.find(i => i.kind !== 'trash') || {}).id);
+      show(selectId && items.some(entry => entry.id === selectId) ? selectId : (items.find(entry => entry.kind !== 'trash') || {}).id);
     });
   }
   function trashControl(item) {
     const box = el('span', 'trash-box');
-    const startBtn = button('chip danger', t('toTrash'));
+    const startBtn = button('chip danger', msg('toTrash'));
     startBtn.addEventListener('click', () => {
-      const ask = el('span', 'trash-ask', t('trashAsk'));
-      const yes = button('chip danger', t('move'));
-      const no = button('chip', t('cancel'));
+      const ask = el('span', 'trash-ask', msg('trashAsk'));
+      const yes = button('chip danger', msg('move'));
+      const no = button('chip', msg('cancel'));
       no.addEventListener('click', () => box.replaceChildren(startBtn));
       yes.addEventListener('click', () => {
         yes.disabled = no.disabled = true;
-        yes.textContent = t('moving');
+        yes.textContent = msg('moving');
         call('trashItem', item.fileIds).then(() => reload(null)).then(() => {
-          notify(t('moved', { title: item.title }), {
-            label: t('undo'),
+          notify(msg('moved', { title: item.title }), {
+            label: msg('undo'),
             run: () => call('restoreItem', item.fileIds).then(() => reload(item.id))
-              .then(() => notify(t('undone')), err => notify(t('undoFailed', { error: errorText(err) }))),
+              .then(() => notify(msg('undone')), err => notify(msg('undoFailed', { error: errorText(err) }))),
           });
         }, err => {
           box.replaceChildren(startBtn);
-          notify(t('moveFailed', { error: errorText(err) }));
+          notify(msg('moveFailed', { error: errorText(err) }));
         });
       });
       box.replaceChildren(ask, yes, no);
@@ -1070,22 +1070,22 @@ function start(data) {
     return box;
   }
   function renderTrash(item) {
-    header(item, [t('trash'), item.folderLabel, item.trashedLabel && t('trashedOn', { date: item.trashedLabel })].filter(Boolean).join(' · '));
+    header(item, [msg('trash'), item.folderLabel, item.trashedLabel && msg('trashedOn', { date: item.trashedLabel })].filter(Boolean).join(' · '));
     reader.append(el('p', 'byline', item.fileName));
     const panel = el('div', 'panel');
-    panel.append(el('p', null, t('trashNote')));
-    if (item.fileCount > 1) panel.append(el('p', null, t('trashFiles', { n: item.fileCount })));
-    panel.append(el('p', null, t('trashNote2')));
+    panel.append(el('p', null, msg('trashNote')));
+    if (item.fileCount > 1) panel.append(el('p', null, msg('trashFiles', { n: item.fileCount })));
+    panel.append(el('p', null, msg('trashNote2')));
     reader.append(panel);
     const foot = el('div', 'foot');
-    const restore = button('chip', t('restore'));
+    const restore = button('chip', msg('restore'));
     restore.addEventListener('click', () => {
       restore.disabled = true;
-      restore.textContent = t('restoring');
-      call('restoreItem', item.fileIds).then(() => reload(item.restoreId)).then(() => notify(t('restored')), err => {
+      restore.textContent = msg('restoring');
+      call('restoreItem', item.fileIds).then(() => reload(item.restoreId)).then(() => notify(msg('restored')), err => {
         restore.disabled = false;
-        restore.textContent = t('restore');
-        notify(t('restoreFailed', { error: errorText(err) }));
+        restore.textContent = msg('restore');
+        notify(msg('restoreFailed', { error: errorText(err) }));
       });
     });
     foot.append(restore);
@@ -1094,33 +1094,33 @@ function start(data) {
 
   /* ---------- settings ---------- */
   function openSettings() {
-    reader.replaceChildren(el('p', 'empty', t('opening')));
+    reader.replaceChildren(el('p', 'empty', msg('opening')));
     scrollToReader();
-    call('getSettings').then(s => {
+    call('getSettings').then(prefs => {
       reader.replaceChildren();
-      renderSetupForm(reader, s, {
+      renderSetupForm(reader, prefs, {
         settings: true,
         onCancel: () => show(current),
-        onSaved: () => reload(current).then(() => notify(t('settingsSaved')), err => notify(errorText(err))),
+        onSaved: () => reload(current).then(() => notify(msg('settingsSaved')), err => notify(errorText(err))),
       });
     }, err => { reader.replaceChildren(el('p', 'empty', errorText(err))); });
   }
 
   /* ---------- search ---------- */
-  q.addEventListener('input', () => {
-    query = q.value;
+  searchBox.addEventListener('input', () => {
+    query = searchBox.value;
     qClear.hidden = !query;
     calYm = null; calSel = null;
     renderNav();
     const vis = visible();
-    if (vis.length && !vis.some(i => i.id === current) && terms().length) show(vis[0].id);
+    if (vis.length && !vis.some(entry => entry.id === current) && terms().length) show(vis[0].id);
     else renderCal();
   });
-  const clearSearch = () => { q.value = ''; q.dispatchEvent(new Event('input')); q.focus(); };
+  const clearSearch = () => { searchBox.value = ''; searchBox.dispatchEvent(new Event('input')); searchBox.focus(); };
   qClear.addEventListener('click', clearSearch);
-  q.addEventListener('keydown', e => { if (e.key === 'Escape' && q.value) { e.preventDefault(); clearSearch(); } });
-  document.addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== q && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+  searchBox.addEventListener('keydown', event => { if (event.key === 'Escape' && searchBox.value) { event.preventDefault(); clearSearch(); } });
+  document.addEventListener('keydown', event => {
+    if (event.key === '/' && document.activeElement !== searchBox && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) { event.preventDefault(); searchBox.focus(); }
   });
 
   renderNav();
@@ -1131,24 +1131,24 @@ function start(data) {
 (function boot() {
   applyStatic();
   const reader = document.getElementById('reader');
-  const note = el('p', 'empty', t('opening'));
+  const note = el('p', 'empty', msg('opening'));
   reader.append(note);
-  const open = d => {
-    LANG = d.lang === 'ko' ? 'ko' : 'en';
-    applyStatic(d);
+  const open = drawer => {
+    LANG = drawer.lang === 'ko' ? 'ko' : 'en';
+    applyStatic(drawer);
     reader.replaceChildren();
-    if (d.needsSetup) {
+    if (drawer.needsSetup) {
       document.body.classList.add('is-setup');
-      renderSetupForm(reader, { lang: d.lang }, {
+      renderSetupForm(reader, { lang: drawer.lang }, {
         onSaved: () => call('getDrawer').then(next => { document.body.classList.remove('is-setup'); open(next); },
-          err => { reader.replaceChildren(el('p', 'empty', t('openFailed', { error: errorText(err) }))); }),
+          err => { reader.replaceChildren(el('p', 'empty', msg('openFailed', { error: errorText(err) }))); }),
       });
       return;
     }
-    start(d);
+    start(drawer);
     initMemos();
   };
-  call('getDrawer').then(open, err => { note.textContent = t('openFailed', { error: errorText(err) }); });
+  call('getDrawer').then(open, err => { note.textContent = msg('openFailed', { error: errorText(err) }); });
 })();
 
 /* ---------- memos (sticky notes) ---------- */
@@ -1170,25 +1170,25 @@ function initMemos() {
 
   /* Saving: changes are gathered for 0.6 seconds and sent one save at a time. */
   let saveTimer = null, saving = false, again = false;
-  function setStatus(text) { for (const [id, n] of nodes) { const m = memos.find(x => x.id === id); if (!m || !m.folded) n.status.textContent = text; } }
+  function setStatus(text) { for (const [id, parts] of nodes) { const memo = memos.find(item => item.id === id); if (!memo || !memo.folded) parts.status.textContent = text; } }
   function scheduleSave() {
     if (!ready) return;
     clearTimeout(saveTimer);
-    setStatus(t('waitSave'));
+    setStatus(msg('waitSave'));
     saveTimer = setTimeout(flush, 600);
   }
   function flush() {
     if (saving) { again = true; return; }
     saving = true;
-    setStatus(t('saving'));
+    setStatus(msg('saving'));
     call('saveMemos', memos).then(() => {
       saving = false;
       if (again) { again = false; flush(); return; }
-      setStatus(t('saved'));
+      setStatus(msg('saved'));
       setTimeout(() => { if (!saving) setStatus(''); }, 1600);
     }, err => {
       saving = false;
-      setStatus(t('saveFailed'));
+      setStatus(msg('saveFailed'));
       console.warn(err);
     });
   }
@@ -1197,34 +1197,34 @@ function initMemos() {
   function linkify(view, text) {
     view.replaceChildren();
     if (!text.trim()) {
-      view.append(el('span', 'memo-placeholder', t('memoPlaceholder')));
+      view.append(el('span', 'memo-placeholder', msg('memoPlaceholder')));
       return;
     }
     const re = /https?:\/\/[^\s<>"']+/g;
-    let last = 0, m;
-    while ((m = re.exec(text))) {
-      if (m.index > last) view.append(text.slice(last, m.index));
-      const url = m[0].replace(/[).,]+$/, '');
+    let last = 0;
+    for (const found of text.matchAll(re)) {
+      if (found.index > last) view.append(text.slice(last, found.index));
+      // Trailing ")" "." "," end the sentence, not the address; they stay as text.
+      const url = found[0].replace(/[).,]+$/, '');
       view.append(link(url, url));
-      last = m.index + url.length;
-      re.lastIndex = last;
+      last = found.index + url.length;
     }
     if (last < text.length) view.append(text.slice(last));
   }
 
   function place(memo) {
-    const n = nodes.get(memo.id);
-    if (!n) return;
-    if (narrow()) { n.el.style.left = ''; n.el.style.top = ''; return; }
-    const room = Math.max(0, layer.clientWidth - n.el.offsetWidth);
-    n.el.style.left = Math.round(memo.x * room) + 'px';
-    n.el.style.top = Math.round(memo.y) + 'px';
+    const parts = nodes.get(memo.id);
+    if (!parts) return;
+    if (narrow()) { parts.el.style.left = ''; parts.el.style.top = ''; return; }
+    const room = Math.max(0, layer.clientWidth - parts.el.offsetWidth);
+    parts.el.style.left = Math.round(memo.x * room) + 'px';
+    parts.el.style.top = Math.round(memo.y) + 'px';
   }
 
   function render(memo, focusEdit) {
     const box = document.createElement('section');
     box.className = 'memo memo--' + memo.color + (memo.folded ? ' is-folded' : '');
-    box.setAttribute('aria-label', t('memo'));
+    box.setAttribute('aria-label', msg('memo'));
     box.style.zIndex = ++topZ;
     box.innerHTML =
       '<div class="memo-bar">' +
@@ -1236,69 +1236,69 @@ function initMemos() {
       '<div class="memo-view" tabindex="0" role="button"></div>' +
       '<textarea class="memo-edit" hidden></textarea>' +
       '<div class="memo-confirm" hidden><span></span><button type="button" data-act="really"></button><button type="button" data-act="keep"></button></div>';
-    const n = {
+    const parts = {
       el: box, status: box.querySelector('.memo-status'), view: box.querySelector('.memo-view'),
       edit: box.querySelector('.memo-edit'), confirm: box.querySelector('.memo-confirm'),
       color: box.querySelector('[data-act="color"]'), fold: box.querySelector('[data-act="fold"]'),
     };
-    box.querySelector('[data-act="delete"]').setAttribute('aria-label', t('deleteMemo'));
-    n.view.setAttribute('aria-label', t('editMemo'));
-    n.edit.setAttribute('aria-label', t('memoText'));
-    n.confirm.querySelector('span').textContent = t('deleteAsk');
-    n.confirm.querySelector('[data-act="really"]').textContent = t('delete');
-    n.confirm.querySelector('[data-act="keep"]').textContent = t('keep');
-    nodes.set(memo.id, n);
+    box.querySelector('[data-act="delete"]').setAttribute('aria-label', msg('deleteMemo'));
+    parts.view.setAttribute('aria-label', msg('editMemo'));
+    parts.edit.setAttribute('aria-label', msg('memoText'));
+    parts.confirm.querySelector('span').textContent = msg('deleteAsk');
+    parts.confirm.querySelector('[data-act="really"]').textContent = msg('delete');
+    parts.confirm.querySelector('[data-act="keep"]').textContent = msg('keep');
+    nodes.set(memo.id, parts);
     const sync = () => {
-      n.color.setAttribute('aria-label', t('changeColor', { color: t('colors')[memo.color] }));
-      n.fold.setAttribute('aria-label', memo.folded ? t('unfold') : t('fold'));
-      n.fold.setAttribute('aria-expanded', String(!memo.folded));
-      n.fold.innerHTML = icon(memo.folded ? '<path d="M3.5 5.5L7 9l3.5-3.5"/>' : '<path d="M3.5 8.5L7 5l3.5 3.5"/>');
-      if (memo.folded) n.status.textContent = memo.text.split('\n')[0].slice(0, 40) || t('emptyMemo');
+      parts.color.setAttribute('aria-label', msg('changeColor', { color: msg('colors')[memo.color] }));
+      parts.fold.setAttribute('aria-label', memo.folded ? msg('unfold') : msg('fold'));
+      parts.fold.setAttribute('aria-expanded', String(!memo.folded));
+      parts.fold.innerHTML = icon(memo.folded ? '<path d="M3.5 5.5L7 9l3.5-3.5"/>' : '<path d="M3.5 8.5L7 5l3.5 3.5"/>');
+      if (memo.folded) parts.status.textContent = memo.text.split('\n')[0].slice(0, 40) || msg('emptyMemo');
     };
-    linkify(n.view, memo.text);
+    linkify(parts.view, memo.text);
     sync();
 
     const startEdit = () => {
-      n.edit.value = memo.text;
-      n.view.hidden = true; n.edit.hidden = false;
-      n.edit.focus();
-      n.edit.setSelectionRange(n.edit.value.length, n.edit.value.length);
+      parts.edit.value = memo.text;
+      parts.view.hidden = true; parts.edit.hidden = false;
+      parts.edit.focus();
+      parts.edit.setSelectionRange(parts.edit.value.length, parts.edit.value.length);
     };
     const endEdit = () => {
-      if (n.edit.hidden) return;
-      if (n.edit.value !== memo.text) { memo.text = n.edit.value; memo.updated = now(); scheduleSave(); }
-      n.edit.hidden = true; n.view.hidden = false;
-      linkify(n.view, memo.text);
+      if (parts.edit.hidden) return;
+      if (parts.edit.value !== memo.text) { memo.text = parts.edit.value; memo.updated = now(); scheduleSave(); }
+      parts.edit.hidden = true; parts.view.hidden = false;
+      linkify(parts.view, memo.text);
       place(memo);
     };
     // Save while typing, so closing the page mid-sentence keeps the text.
-    n.edit.addEventListener('input', () => { memo.text = n.edit.value; memo.updated = now(); scheduleSave(); });
-    n.view.addEventListener('click', e => { if (!e.target.closest('a')) startEdit(); });
-    n.view.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } });
-    n.edit.addEventListener('blur', endEdit);
-    n.edit.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); n.edit.blur(); } });
+    parts.edit.addEventListener('input', () => { memo.text = parts.edit.value; memo.updated = now(); scheduleSave(); });
+    parts.view.addEventListener('click', event => { if (!event.target.closest('a')) startEdit(); });
+    parts.view.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startEdit(); } });
+    parts.edit.addEventListener('blur', endEdit);
+    parts.edit.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); parts.edit.blur(); } });
 
-    box.addEventListener('click', e => {
-      const act = e.target.closest('[data-act]');
+    box.addEventListener('click', event => {
+      const act = event.target.closest('[data-act]');
       if (!act) return;
-      const a = act.dataset.act;
-      if (a === 'color') {
+      const action = act.dataset.act;
+      if (action === 'color') {
         box.classList.remove('memo--' + memo.color);
         memo.color = COLORS[(COLORS.indexOf(memo.color) + 1) % COLORS.length];
         box.classList.add('memo--' + memo.color);
         memo.updated = now(); sync(); scheduleSave();
-      } else if (a === 'fold') {
+      } else if (action === 'fold') {
         memo.folded = !memo.folded;
         box.classList.toggle('is-folded', memo.folded);
-        if (!memo.folded) n.status.textContent = '';
+        if (!memo.folded) parts.status.textContent = '';
         memo.updated = now(); sync(); place(memo); scheduleSave();
-      } else if (a === 'delete') {
-        n.confirm.hidden = false;
-        n.confirm.querySelector('[data-act="keep"]').focus();
-      } else if (a === 'keep') {
-        n.confirm.hidden = true;
-      } else if (a === 'really') {
-        memos = memos.filter(m => m !== memo);
+      } else if (action === 'delete') {
+        parts.confirm.hidden = false;
+        parts.confirm.querySelector('[data-act="keep"]').focus();
+      } else if (action === 'keep') {
+        parts.confirm.hidden = true;
+      } else if (action === 'really') {
+        memos = memos.filter(other => other !== memo);
         nodes.delete(memo.id);
         box.remove();
         flushSoon();
@@ -1307,14 +1307,14 @@ function initMemos() {
 
     /* Dragging: hold the top bar and move (not when the press starts on a button). */
     const bar = box.querySelector('.memo-bar');
-    bar.addEventListener('pointerdown', e => {
+    bar.addEventListener('pointerdown', event => {
       box.style.zIndex = ++topZ;
-      if (narrow() || e.button !== 0 || e.target.closest('button')) return;
-      e.preventDefault();
+      if (narrow() || event.button !== 0 || event.target.closest('button')) return;
+      event.preventDefault();
       const area = layer.getBoundingClientRect();
-      const startLeft = box.offsetLeft, startTop = box.offsetTop, sx = e.clientX, sy = e.clientY;
+      const startLeft = box.offsetLeft, startTop = box.offsetTop, sx = event.clientX, sy = event.clientY;
       let moved = false;
-      bar.setPointerCapture(e.pointerId);
+      bar.setPointerCapture(event.pointerId);
       box.classList.add('is-dragging');
       const move = ev => {
         const left = Math.min(Math.max(0, startLeft + ev.clientX - sx), Math.max(0, area.width - box.offsetWidth));
@@ -1366,12 +1366,12 @@ function initMemos() {
   call('getMemos').then(res => {
     if (res && res.notSetUp) return;
     memos = Array.isArray(res && res.memos) ? res.memos : [];
-    memos.forEach(m => render(m));
+    memos.forEach(memo => render(memo));
     ready = true;
     addBtn.disabled = false;
-    if (!res || res.memos === null) addMemo(t('firstMemo'), { x: 0.7, y: 76, color: 'butter' });
+    if (!res || res.memos === null) addMemo(msg('firstMemo'), { x: 0.7, y: 76, color: 'butter' });
   }, err => {
-    addBtn.title = t('memosFailed');
+    addBtn.title = msg('memosFailed');
     console.warn(err);
   });
 }

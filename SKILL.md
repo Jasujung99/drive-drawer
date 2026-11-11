@@ -2,7 +2,7 @@
 name: drive-drawer
 description: Set up and look after Drive Drawer, a private one-page reader for a Google Drive folder of Markdown writing and AI chat archives (ChatGPT, Claude, Gemini, Grok), running as the user's own Google Apps Script web app that only they can open. Use whenever the user wants to read their notes or chat archive on a phone or desktop straight from Google Drive, install or update the drawer web app, change its folder, title, language or services, fix a drawer error, or write .md files the drawer shows, even if they never say "Drive Drawer", for example "make my AI chat archive readable on my phone", "set up a private reading page for my Drive folder", "update my drawer to the new version", "서랍 만들어 줘", "드라이브 서랍 설치해 줘", or "아카이브를 휴대폰에서 보고 싶어".
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Drive Drawer
@@ -14,6 +14,7 @@ Tell the user what it touches before installing:
 - **Reads:** `texts/` and the conversation folders (`chatgpt/`, `claude/`, `gemini/`, `grok/` by default) inside the drawer folder.
 - **Changes:** moves files in those folders to the Drive trash and back when the user presses the button, and writes one file, `_memos.json`, in the drawer folder. Nothing else is edited, and nothing is deleted for good; Google empties the trash after 30 days.
 - **Asks Google for:** Drive access (needed to move files to the trash and save memos) and external requests (to read Drive in parallel).
+- **Network:** the web app calls only the Google Drive API (`https://www.googleapis.com/drive/v3/files` and `https://www.googleapis.com/upload/drive/v3/files`), from the user's own Apps Script account, to list and read the drawer's files, move them to the trash and back, and save `_memos.json`. The page loads one font from Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`). Links to Drive files and to chats open only when the user selects them. The agent's steps and `scripts/build_preview.py` use no network, and the addresses inside `examples/` are sample text that is never fetched.
 
 ## Ground rules
 
